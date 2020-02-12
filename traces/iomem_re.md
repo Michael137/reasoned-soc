@@ -17,7 +17,16 @@ during system-wide sleep to monitor the wakeup-capable interrupts." - [Resource 
   - "-reg: Specifies the physical address of the ps-hold register
       This value must correspond to "pshold-base" as defined in reg-names"
 - tsens_physical: 8.191 KB
+  - **REPEATED**
 - /soc/arm,smmu-anoc1@1680000: 65.53 KB
+  - Defined in [msm-arm-smmu-8998.dtsi](https://android.googlesource.com/kernel/msm/+/android-msm-wahoo-4.4-oreo-dr1/arch/arm/boot/dts/qcom/msm-arm-smmu-8998.dtsi)
+  - ".dtsi" files contain SoC level definitions that get included into the final device ".dts" files (see [here](https://bootlin.com/pub/conferences/2013/elce/petazzoni-device-tree-dummies/petazzoni-device-tree-dummies.pdf))
+    - More on device tree sources [here](https://www.digi.com/resources/documentation/digidocs/90002287/reference/bsp/r_device_tree_files.htm)
+  - [Format of dts files](https://devicetree-specification.readthedocs.io/en/latest/source-language.html):
+    - `[label:] node-name[@unit-address] {
+			[properties definitions]
+			[child nodes]
+		};`
 - /soc/arm,smmu-anoc2@16c0000: 262.1 KB
 - sp2soc_irq_status: 3 B
 - sp2soc_irq_clr: 3 B
