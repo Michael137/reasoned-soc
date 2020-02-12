@@ -1,7 +1,8 @@
 # SoC Info
 ## Memory Map
 - ![Qualcomm Snapdragon 410 Processor APQ8016](apq8016_mmap)
-**Memory map of later models not publicly available**
+
+**Note: Memory map of later models not publicly available**
 
 ## IPs
 - [Qualcomm 845 Overview](https://www.qualcomm.com/media/documents/files/snapdragon-845-mobile-platform-product-brief.pdf)
