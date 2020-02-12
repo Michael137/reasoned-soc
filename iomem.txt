@@ -1,0 +1,101 @@
+007781b8-007791b7 : vmpm
+010aa000-010abfff : tsens_physical
+010ac000-010ac003 : pshold-base
+010ad000-010aefff : tsens_physical
+01680000-0168ffff : /soc/arm,smmu-anoc1@1680000
+016c0000-016fffff : /soc/arm,smmu-anoc2@16c0000
+01d0101c-01d0101f : sp2soc_irq_status
+01d01024-01d01027 : sp2soc_irq_clr
+01d01028-01d0102b : sp2soc_irq_mask
+01d0103c-01d0103f : rmb_err
+01d02030-01d02033 : rmb_err_spare2
+01da4000-01da64ff : /soc/ufshc@1da4000
+01da7000-01da7da7 : phy_mem
+01db0000-01db7fff : /soc/ufsice@1db0000
+01fcb244-01fcb247 : vls_clamp_reg
+01fcb248-01fcb24b : tcsr_usb3_dp_phymode
+01fcb24c-01fcb24f : tcsr_clamp_dig_n_1p8
+03400000-03ffffff : /soc/pinctrl@03400000
+04080000-040800ff : qdsp6_base
+04180000-0418001f : rmb_base
+05000000-0503ffff : kgsl-3d0
+05040000-0504ffff : /soc/arm,smmu-kgsl@5040000
+05100000-0513ffff : /soc/arm,smmu-lpass_q6@5100000
+06002000-06002fff : stm-base
+  06002000-06002fff : stm-base
+06005000-06005fff : funnel-base
+  06005000-06005fff : funnel-base
+06041000-06041fff : funnel-base
+  06041000-06041fff : funnel-base
+06042000-06042fff : funnel-base
+  06042000-06042fff : funnel-base
+06045000-06045fff : funnel-base
+  06045000-06045fff : funnel-base
+06046000-06046fff : replicator-base
+  06046000-06046fff : replicator-base
+06047000-06047fff : tmc-base
+  06047000-06047fff : tmc-base
+06048000-06048fff : tmc-base
+  06048000-06048fff : tmc-base
+07083000-07083fff : funnel-base
+  07083000-07083fff : funnel-base
+07225000-07225fff : funnel-base
+  07225000-07225fff : funnel-base
+07840000-07840fff : /soc/etm@7840000
+  07840000-07840fff : /soc/etm@7840000
+07940000-07940fff : /soc/etm@7940000
+  07940000-07940fff : /soc/etm@7940000
+07a40000-07a40fff : /soc/etm@7A40000
+  07a40000-07a40fff : /soc/etm@7A40000
+07b40000-07b40fff : /soc/etm@7B40000
+  07b40000-07b40fff : /soc/etm@7B40000
+07b60000-07b60fff : funnel-base
+  07b60000-07b60fff : funnel-base
+07b70000-07b70fff : funnel-base
+  07b70000-07b70fff : funnel-base
+07c40000-07c40fff : /soc/etm@7C40000
+  07c40000-07c40fff : /soc/etm@7C40000
+07d40000-07d40fff : /soc/etm@7D40000
+  07d40000-07d40fff : /soc/etm@7D40000
+07e40000-07e40fff : /soc/etm@7E40000
+  07e40000-07e40fff : /soc/etm@7E40000
+07f40000-07f40fff : /soc/etm@7F40000
+  07f40000-07f40fff : /soc/etm@7F40000
+0800a000-0800cfff : cnfg
+0800f000-0800ffff : core
+08400000-093fffff : chnls
+09400000-0a3fffff : obsrvr
+0a400000-0a61ffff : intr
+0a80c100-0a80ccff : /soc/ssusb@a800000/dwc3@a800000
+0c010000-0c010e0b : qmp_phy_base
+0c012000-0c0122a7 : qusb_phy_base
+0c0a4900-0c0a4c13 : mmc0
+0c179000-0c1795ff : c179000.i2c
+0c17a000-0c17a5ff : c17a000.i2c
+0c1b0000-0c1b0fff : msm_serial
+0c1b5000-0c1b55ff : c1b5000.i2c
+0c1b8000-0c1b85ff : spi_qsd
+0c880000-0c88006a : reg-base
+0ca04000-0ca040ff : cpp
+0ca0c000-0ca0ffff : cci
+0ca18000-0ca1afff : cpp_hw
+0ca1c000-0ca1ffff : jpeg_hw
+0ca30000-0ca303ff : csid
+0ca30400-0ca307ff : csid
+0ca30800-0ca30bff : csid
+0ca30c00-0ca30fff : csid
+0ca31000-0ca31bff : ispif
+0ca34000-0ca34fff : csiphy
+0ca35000-0ca35fff : csiphy
+0ca36000-0ca36fff : csiphy
+0caa0000-0caa3fff : jpeg_hw
+0caa4000-0caa47ff : fd_core
+0caa5000-0caa53ff : fd_misc
+0cd00000-0cd3ffff : /soc/arm,smmu-mmss@cd00000
+17817000-17817fff : msm-watchdog
+17900000-1790dfff : msm-gladiator-erp
+80000000-857fffff : System RAM
+  80080000-8185ffff : Kernel code
+  823a0000-829b6fff : Kernel data
+88f00000-8aafffff : System RAM
+95300000-17e3bffff : System RAM
