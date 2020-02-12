@@ -20,6 +20,7 @@ during system-wide sleep to monitor the wakeup-capable interrupts." - [Resource 
   - **REPEATED**
 - /soc/arm,smmu-anoc1@1680000: 65.53 KB
   - Defined in [msm-arm-smmu-8998.dtsi](https://android.googlesource.com/kernel/msm/+/android-msm-wahoo-4.4-oreo-dr1/arch/arm/boot/dts/qcom/msm-arm-smmu-8998.dtsi)
+  - [ARM SMMU](https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/Documentation/devicetree/bindings/iommu/arm,smmu.txt)
   - ".dtsi" files contain SoC level definitions that get included into the final device ".dts" files (see [here](https://bootlin.com/pub/conferences/2013/elce/petazzoni-device-tree-dummies/petazzoni-device-tree-dummies.pdf))
     - More on device tree sources [here](https://www.digi.com/resources/documentation/digidocs/90002287/reference/bsp/r_device_tree_files.htm)
   - [Format of dts files](https://devicetree-specification.readthedocs.io/en/latest/source-language.html):
@@ -28,14 +29,23 @@ during system-wide sleep to monitor the wakeup-capable interrupts." - [Resource 
 			[child nodes]
 		};`
 - /soc/arm,smmu-anoc2@16c0000: 262.1 KB
+  - **SEE ABOVE**
 - sp2soc_irq_status: 3 B
 - sp2soc_irq_clr: 3 B
 - sp2soc_irq_mask: 3 B
 - rmb_err: 3 B
 - rmb_err_spare2: 3 B
 - /soc/ufshc@1da4000: 9.471 KB
+  - Related to Qualcomm Inline Crypto Engine (?)
 - phy_mem: 3.495 KB
 - /soc/ufsice@1db0000: 32.77 KB
+  - [Inline Crypto Engine](https://android.googlesource.com/kernel/msm.git/+/android-msm-bullhead-3.10-n-preview-1/Documentation/devicetree/bindings/crypto/msm/ice.txt)
+  - [More on Qualcomm ICE](https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp3124.pdf)
+    - "Qualcomm Inline Crypto Engine (UFS) is classified as a single chip hardware module for the
+purpose of FIPS 140-2 validation. It provides AES-XTS encryption and decryption of block storage
+devices. The logical cryptographic boundary is the Qualcomm Inline Crypto Engine (UFS) 3.1.0,
+which is a sub-chip hardware component contained within the Qualcomm Snapdragon 845 SoC,
+the Snapdragon 855 SoC, and the Snapdragon 865 Mobile Platform SoC"
 - vls_clamp_reg: 3 B
 - tcsr_usb3_dp_phymode: 3 B
 - tcsr_clamp_dig_n_1p8: 3 B
