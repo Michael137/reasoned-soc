@@ -11,11 +11,16 @@
 //     0x95300000-0x17e3bffff = 3.9 GB
 //     95300000-17e3bffff = 3.9 GB
 
-int main()
+int main(int argc, char* argv[])
 {
 	std::string in;
-	std::cout << "Hex Range: " << std::endl;
-	std::cin >> in;
+
+	if(argc == 2) {
+		in = argv[1];
+	} else {
+		std::cout << "Hex Range: " << std::endl;
+		std::cin >> in;
+	}
 
 	size_t delim_pos = in.find( '-' );
 	std::string from = in.substr( 0, delim_pos );
