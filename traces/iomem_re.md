@@ -1,0 +1,117 @@
+- vmpm: 4.095 KB
+  - [MSM Sleep Power Manager](https://android.googlesource.com/kernel/msm/+/android-msm-flo-3.4-kitkat-mr1/Documentation/devicetree/bindings/arm/msm/mpm.txt)
+  - "reg-names: "vmpm" - string to identify the shared memory space region"
+  - "MPM driver: Modem power manager driver is used to program the MPM hardware block
+during system-wide sleep to monitor the wakeup-capable interrupts." - [Resource Power Manager API Reference](https://developer.qualcomm.com/qfile/35136/lm80-p0436-73_a_qualcomm_snapdragon_410e_processor_apq8016e_system_power_overview.pdf)
+- tsens_physical: 8.191 KB
+  - [Qualcomm's TSENS driver](https://android.googlesource.com/kernel/msm/+/android-msm-bullhead-3.10-marshmallow-dr/Documentation/devicetree/bindings/thermal/tsens.txt)
+  - "supports reading temperature from sensors across the MSM"
+  - "reg-names : resource names used for the physical address of the TSENS
+	      registers, the QFPROM efuse primary calibration address region,
+	      Should be "tsens_physical" for physical address of the TSENS,
+	      "tsens_eeprom_physical" for physical address where primary
+	      calibration data is stored."
+- pshold-base: 3 B
+  - [MSM Restart Driver](https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/Documentation/devicetree/bindings/power_supply/msm-poweroff.txt)
+  - A power supply hold (ps-hold) bit is set to power the msm chipsets
+  - "-reg: Specifies the physical address of the ps-hold register
+      This value must correspond to "pshold-base" as defined in reg-names"
+- tsens_physical: 8.191 KB
+- /soc/arm,smmu-anoc1@1680000: 65.53 KB
+- /soc/arm,smmu-anoc2@16c0000: 262.1 KB
+- sp2soc_irq_status: 3 B
+- sp2soc_irq_clr: 3 B
+- sp2soc_irq_mask: 3 B
+- rmb_err: 3 B
+- rmb_err_spare2: 3 B
+- /soc/ufshc@1da4000: 9.471 KB
+- phy_mem: 3.495 KB
+- /soc/ufsice@1db0000: 32.77 KB
+- vls_clamp_reg: 3 B
+- tcsr_usb3_dp_phymode: 3 B
+- tcsr_clamp_dig_n_1p8: 3 B
+- /soc/pinctrl@03400000: 12.58 MB
+- qdsp6_base: 255 B
+- rmb_base: 31 B
+- kgsl-3d0: 262.1 KB
+- /soc/arm,smmu-kgsl@5040000: 65.53 KB
+- /soc/arm,smmu-lpass_q6@5100000: 262.1 KB
+- stm-base: 4.095 KB
+- stm-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- replicator-base: 4.095 KB
+- replicator-base: 4.095 KB
+- tmc-base: 4.095 KB
+- tmc-base: 4.095 KB
+- tmc-base: 4.095 KB
+- tmc-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- /soc/etm@7840000: 4.095 KB
+- /soc/etm@7840000: 4.095 KB
+- /soc/etm@7940000: 4.095 KB
+- /soc/etm@7940000: 4.095 KB
+- /soc/etm@7A40000: 4.095 KB
+- /soc/etm@7A40000: 4.095 KB
+- /soc/etm@7B40000: 4.095 KB
+- /soc/etm@7B40000: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- funnel-base: 4.095 KB
+- /soc/etm@7C40000: 4.095 KB
+- /soc/etm@7C40000: 4.095 KB
+- /soc/etm@7D40000: 4.095 KB
+- /soc/etm@7D40000: 4.095 KB
+- /soc/etm@7E40000: 4.095 KB
+- /soc/etm@7E40000: 4.095 KB
+- /soc/etm@7F40000: 4.095 KB
+- /soc/etm@7F40000: 4.095 KB
+- cnfg: 12.29 KB
+- core: 4.095 KB
+- chnls: 16.78 MB
+- obsrvr: 16.78 MB
+- intr: 2.228 MB
+- /soc/ssusb@a800000/dwc3@a800000: 3.071 KB
+- qmp_phy_base: 3.595 KB
+- qusb_phy_base: 679 B
+- mmc0: 787 B
+- c179000.i2c: 1.535 KB
+- c17a000.i2c: 1.535 KB
+- msm_serial: 4.095 KB
+- c1b5000.i2c: 1.535 KB
+- spi_qsd: 1.535 KB
+- reg-base: 106 B
+- cpp: 255 B
+- cci: 16.38 KB
+- cpp_hw: 12.29 KB
+- jpeg_hw: 16.38 KB
+- csid: 1.023 KB
+- csid: 1.023 KB
+- csid: 1.023 KB
+- csid: 1.023 KB
+- ispif: 3.071 KB
+- csiphy: 4.095 KB
+- csiphy: 4.095 KB
+- csiphy: 4.095 KB
+- jpeg_hw: 16.38 KB
+- fd_core: 2.047 KB
+- fd_misc: 1.023 KB
+- /soc/arm,smmu-mmss@cd00000: 262.1 KB
+- msm-watchdog: 4.095 KB
+- msm-gladiator-erp: 57.34 KB
+- System RAM: 92.27 MB
+- Kernel code: 25.03 MB
+- Kernel data: 6.386 MB
+- System RAM: 29.36 MB
+- System RAM: 3.91 GB
+
