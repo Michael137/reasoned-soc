@@ -76,6 +76,8 @@ shutting down the processor when it's not needed."
   - LPASS memory management unit (same location of definition as smmu-kgsl above)
   - [Qualcomm Technologies LPASS CPU DAI](https://www.kernel.org/doc/Documentation/devicetree/bindings/sound/qcom%2Clpass-cpu.txt)
 - stm-base: 4.095 KB
+  - ARM Coresight STM
+  - HW component **used for tracing/debugging SoC**
 - stm-base: 4.095 KB
 - funnel-base: 4.095 KB
 - funnel-base: 4.095 KB

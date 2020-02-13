@@ -16,3 +16,7 @@ DT: device tree
     - "The audio codec DSP then loops into the Snapdragon 845’s sophisticated low-power audio subsystem (LPASS), which includes a Qualcomm Hexagon 685 Scalar Processor, architecturally designed for audio uses. LPASS is the heart of the audio and voice experience on your Snapdragon-powered phone, playing a vital part in voice UI processing. In this role, LPASS performs voice verification to confirm your identity"
     - "The LPASS and Kryo CPU also include specialized hardware for high-quality audio processing, which is an area of circuitry that serves as a bridge to the digital-to-analog converter (DAC) on the audio codec. As the LPASS arrives at your answer, it’s engineered to direct it to the DAC, which converts the signal back to analog and pipes it to the output speaker for you to hear."
     - ![LPASS SoC Component](figs/lpass_hardware.png)
+- STM: Arm CoreSight System Trace Macrocell (STM)
+  - "trace source that enables real-time instrumentation of software with no impact on system behavior or performance"
+  - [Technical Reference](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0444b/CACEBJCA.html)
+  - [Tutorials](https://developer.arm.com/ip-products/system-ip/coresight-debug-and-trace/coresight-components/system-trace-macrocell)
