@@ -47,11 +47,22 @@ devices. The logical cryptographic boundary is the Qualcomm Inline Crypto Engine
 which is a sub-chip hardware component contained within the Qualcomm Snapdragon 845 SoC,
 the Snapdragon 855 SoC, and the Snapdragon 865 Mobile Platform SoC"
 - vls_clamp_reg: 3 B
+  - [USB related](https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/Documentation/devicetree/bindings/usb/msm-phy.txt)
 - tcsr_usb3_dp_phymode: 3 B
 - tcsr_clamp_dig_n_1p8: 3 B
 - /soc/pinctrl@03400000: 12.58 MB
 - qdsp6_base: 255 B
+  - [Qualcomm MSS QDSP6v5 Peripheral Image Loader](https://android.googlesource.com/kernel/msm/+/android-msm-3.9-usb-and-mmc-hacks/Documentation/devicetree/bindings/pil/pil-q6v5-mss.txt)
+  - "peripheral image loader (PIL) driver. It is used for
+loading QDSP6v5 (Hexagon) firmware images for modem subsystems into memory and
+preparing the subsystem's processor to execute code. It's also responsible for
+shutting down the processor when it's not needed."
 - rmb_base: 31 B
+  - Related to [Qualcomm Femtocell (FSM99XX and FSM90XX) Peripheral Image Loader](https://android.googlesource.com/kernel/msm/+/android-msm-bullhead-3.10-marshmallow-dr/Documentation/devicetree/bindings/pil/pil-femto-modem.txt)
+  - "pil-femto-modem is a peripheral image loader (PIL) driver. It is used for loading firmware images on multiple modems resident on the FSM99XX and FSM90XX platforms."
+  - "- reg: Pair of physical base address and region size of the
+            Relay Message Buffer (RMB) registers for this modem.
+     - reg-names:            "rmb_base" is required."
 - kgsl-3d0: 262.1 KB
 - /soc/arm,smmu-kgsl@5040000: 65.53 KB
 - /soc/arm,smmu-lpass_q6@5100000: 262.1 KB
