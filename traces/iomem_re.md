@@ -64,8 +64,17 @@ shutting down the processor when it's not needed."
             Relay Message Buffer (RMB) registers for this modem.
      - reg-names:            "rmb_base" is required."
 - kgsl-3d0: 262.1 KB
+  - [Related to the KGSL GPU Driver](https://android.googlesource.com/kernel/msm/+/android-msm-sony-cm-jb-3.0/Documentation/arm/msm/kgsl-sysfs.txt)
+  - "Each individual GPU device (2D or 3D) will have its own device node in
+  this directory. All platforms will have kgsl-3d0 (3D device)"
+  - Related KGSL Exploits:
+    1. [Heap Overflow (with code examples)](https://www.exploit-db.com/exploits/39504)
+    2. [Slides](https://www.blackhat.com/docs/eu-16/materials/eu-16-Taft-GPU-Security-Exposed.pdf)
 - /soc/arm,smmu-kgsl@5040000: 65.53 KB
+  - [KGSL memory management unit](https://android.googlesource.com/kernel/msm/+/android-msm-wahoo-4.4-oreo-dr1/arch/arm/boot/dts/qcom/msm-arm-smmu-8998.dtsi)
 - /soc/arm,smmu-lpass_q6@5100000: 262.1 KB
+  - LPASS memory management unit (same location of definition as smmu-kgsl above)
+  - [Qualcomm Technologies LPASS CPU DAI](https://www.kernel.org/doc/Documentation/devicetree/bindings/sound/qcom%2Clpass-cpu.txt)
 - stm-base: 4.095 KB
 - stm-base: 4.095 KB
 - funnel-base: 4.095 KB
