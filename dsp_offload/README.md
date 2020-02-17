@@ -28,4 +28,10 @@ export SNPE_ROOT=$HOME/Qualcomm/snpe-1.35.0.698
 
 cd $HOME/Qualcomm/snpe-1.35.0.698/bin; source envsetup.sh -c ~/caffe > /dev/null; cd ~`
 9. Try AlexNet example
+  - Copy the `/home/gardei/Qualcomm/snpe-1.35.0.698/bin/x86_64-linux-clang/snpe-caffe-to-dlc` to the AlexNet scripts directory or put it on the path
   - Run from `$HOME/Qualcomm/snpe-1.35.0.698/models/alexnet/scripts`: `python setup_alexnet.py -d -a ./temp-assets-cache`
+  - Copy over the shared libraries to your device: `adb push $SNPE_ROOT/lib/dsp/lib* /dsp/snpe`
+  - Benchmarks on device; run following from host:
+    - `cd $SNPE_ROOT/benchmarks`
+    - `python snpe_bench.py -c alexnet_sample.json -a --profilinglevel detailed`
+    - Export results `cd $SNPE_ROOT/benchmarks/alexnet/results/latest_results`
