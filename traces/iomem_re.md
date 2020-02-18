@@ -80,6 +80,9 @@ shutting down the processor when it's not needed."
   - HW component **used for tracing/debugging SoC**
 - stm-base: 4.095 KB
 - funnel-base: 4.095 KB
+  - part of [ARM trace collection flow](http://www2.lauterbach.com/pdf/app_arm_coresight.pdf)
+  - " data can be passed directly or combined with other trace sources via Funnel (CSTF) and AMBA Trace Bus (ATB) off-chip to the Trace Port Interface Unit (TPIU)"
+  - "The ATB funnel component merges multiple ATB buses into a single ATB bus"
 - funnel-base: 4.095 KB
 - funnel-base: 4.095 KB
 - funnel-base: 4.095 KB
@@ -88,8 +91,12 @@ shutting down the processor when it's not needed."
 - funnel-base: 4.095 KB
 - funnel-base: 4.095 KB
 - replicator-base: 4.095 KB
+  - part of ATB flow
+  - "ATB replicator propagates the data from a single ATB master to two ATB slaves at the same time"
 - replicator-base: 4.095 KB
 - tmc-base: 4.095 KB
+  - [Trace Memory Controller](https://developer.arm.com/ip-products/system-ip/coresight-debug-and-trace/coresight-components/trace-memory-controller)
+  - "configurable trace component to terminate trace buses into buffers, FIFOs, or alternatively, to route trace data over AXI to memory or off-chip to interface controllers"
 - tmc-base: 4.095 KB
 - tmc-base: 4.095 KB
 - tmc-base: 4.095 KB
@@ -98,6 +105,8 @@ shutting down the processor when it's not needed."
 - funnel-base: 4.095 KB
 - funnel-base: 4.095 KB
 - /soc/etm@7840000: 4.095 KB
+  - [Embedded Trace Macrocell](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0337h/CHDJAECG.html)
+  - "ETM is an optional debug component that enables reconstruction of program execution. The ETM is designed to be a high-speed, low-power debug tool that only supports instruction trace"
 - /soc/etm@7840000: 4.095 KB
 - /soc/etm@7940000: 4.095 KB
 - /soc/etm@7940000: 4.095 KB
@@ -118,24 +127,42 @@ shutting down the processor when it's not needed."
 - /soc/etm@7F40000: 4.095 KB
 - /soc/etm@7F40000: 4.095 KB
 - cnfg: 12.29 KB
+  - Part of [Qualcomm SPMI Controller (PMIC Arbiter)](https://www.kernel.org/doc/Documentation/devicetree/bindings/spmi/qcom%2Cspmi-pmic-arb.txt)
 - core: 4.095 KB
+  - For SPMI as above
 - chnls: 16.78 MB
+  - For SPMI as above
 - obsrvr: 16.78 MB
+  - For SPMI as above
 - intr: 2.228 MB
+  - For SPMI as above
 - /soc/ssusb@a800000/dwc3@a800000: 3.071 KB
+  - [USB3 controller](https://android.googlesource.com/kernel/msm/+/android-wear-5.1.1_r0.6/Documentation/devicetree/bindings/usb/dwc3.txt)
 - qmp_phy_base: 3.595 KB
+  - Related to [Qualcomm QMP PHY Controller](https://www.kernel.org/doc/Documentation/devicetree/bindings/phy/qcom-qmp-phy.txt)
+  - "supports physical layer functionality for a number of controllers on Qualcomm chipsets, such as, PCIe, UFS, and USB."
 - qusb_phy_base: 679 B
+  - Same as above
 - mmc0: 787 B
+  - SSD card driver
 - c179000.i2c: 1.535 KB
+  - I2C controller
 - c17a000.i2c: 1.535 KB
+  - I2C controller
 - msm_serial: 4.095 KB
+  - Serial controller
 - c1b5000.i2c: 1.535 KB
+  - I2C controller
 - spi_qsd: 1.535 KB
+  - SPI controller
 - reg-base: 106 B
 - cpp: 255 B
+  - Related to [Qualcomm Video Camera Driver](https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/Documentation/devicetree/bindings/media/video/msm-cpp.txt)
 - cci: 16.38 KB
+  - [Camera Control Interface](https://lwn.net/Articles/735236/)
 - cpp_hw: 12.29 KB
 - jpeg_hw: 16.38 KB
+  - [Camera Driver](https://android.googlesource.com/kernel/msm/+/android-msm-wahoo-4.4-oreo-dr1/arch/arm/boot/dts/qcom/msm8998-camera.dtsi)
 - csid: 1.023 KB
 - csid: 1.023 KB
 - csid: 1.023 KB
@@ -146,6 +173,8 @@ shutting down the processor when it's not needed."
 - csiphy: 4.095 KB
 - jpeg_hw: 16.38 KB
 - fd_core: 2.047 KB
+  - [Qualcomm Face Detection](https://android.googlesource.com/kernel/msm.git/+/android-msm-bullhead-3.10-n-preview-1/Documentation/devicetree/bindings/media/video/msm-fd.txt)
+  - "Face detection hardware block. The Face Detection Hardware Block will offload processing on the host and also reduce power consumption."
 - fd_misc: 1.023 KB
 - /soc/arm,smmu-mmss@cd00000: 262.1 KB
 - msm-watchdog: 4.095 KB

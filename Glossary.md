@@ -20,3 +20,7 @@ DT: device tree
   - "trace source that enables real-time instrumentation of software with no impact on system behavior or performance"
   - [Technical Reference](http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.ddi0444b/CACEBJCA.html)
   - [Tutorials](https://developer.arm.com/ip-products/system-ip/coresight-debug-and-trace/coresight-components/system-trace-macrocell)
+- ATB: Advanced Trace Bus
+  - [Overview](https://developer.arm.com/docs/ddi0480/d/atb-interconnect-components)
+  - "The ATB is a trace output bus used for debugging"
+- SPMI: System Power Management Interface
