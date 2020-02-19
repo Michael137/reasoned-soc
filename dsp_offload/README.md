@@ -2,11 +2,11 @@
 0. Make sure your gcc is **not** one of the latest versions (gcc7 is sufficient (default on Ubuntu)) since it can cause libc version complications when installing from source later
 1. Install the **Python 2.7** pre-requisites for SNPE.
   - Make sure you stick to python 2.7 since 3.6 is not supported and versions between 2.7 and 3.6 are tricky to set up right
-2. Install Caffe instead of Tensorflow since the latter since SNPE is not compatible with the latest TF versions
+~~2. Install Caffe instead of Tensorflow since the latter since SNPE is not compatible with the latest TF versions~~
 3. Install the Android NDK (via the Hexagon SDK installation)
   - Add following to your bashrc
 `export ANDROID_NDK_ROOT="$HOME/Qualcomm/Hexagon_SDK/3.5.1/tools/android-ndk-r19c"`
-4. Install the latest version of "skimage" and "scikit-image". The latter is important to have on the latest version because pre-v0.14 contain a numpy breakage
+4. Install the **latest version** of "scikit-image" and other pre-requisites (check with bin/check_python_depends.sh and bin/dependencies.sh in snpe folder). The latter is important to have on the latest version because pre-v0.14 contain a numpy breakage
 5. Install protobuf from source
 6. Check whether `libatomic.so.1` is in `$SNPE_ROOT/lib/aarch64-linux-gcc4.9/ already`
   - Otherwise install using `apt` or equivalent
