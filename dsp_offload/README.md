@@ -10,6 +10,7 @@
 5. Check whether `libatomic.so.1` is in `$SNPE_ROOT/lib/aarch64-linux-gcc4.9/` already
   - Otherwise install using `apt` or equivalent
 6. Install Caffe (instead of Tensorflow since the latter since SNPE is not compatible with the latest TF versions):
+  - `sudo apt-get install libgflags2 libgflags-dev`
   - `git clone https://github.com/BVLC/caffe.git ~/caffe; cd ~/caffe; git reset --hard 18b09e807a6e146750d84e89a961ba8e678830b4`
   - `mkdir build; cd build; cmake ..`
   - `make all -j4`
