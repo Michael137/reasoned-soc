@@ -13,6 +13,7 @@
   - gflags: `sudo apt-get install libgflags2 libgflags-dev`
   - BLAS: `sudo apt-get install libatlas-base-dev`
   - hdf5: `sudo apt-get install libhdf5-serial-dev`
+  - [Install glog](https://github.com/google/glog/wiki/Installing-Glog-on-Ubuntu-14.04)
   - `git clone https://github.com/BVLC/caffe.git ~/caffe; cd ~/caffe; git reset --hard 18b09e807a6e146750d84e89a961ba8e678830b4`
   - `mkdir build; cd build; cmake ..`
   - `make all -j4`
