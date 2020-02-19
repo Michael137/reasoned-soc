@@ -23,13 +23,15 @@
   - `make pycaffe`
   - Install Caffe2 using your distribution's package manager
 7. Add following to your bashrc:
-`export PYTHONPATH=$HOME/Qualcomm/snpe-1.35.0.698/lib/python:$PYTHONPATH
+```bash
+export PYTHONPATH=$HOME/Qualcomm/snpe-1.35.0.698/lib/python:$PYTHONPATH
 export PYTHONPATH=$HOME/caffe/build/install/python:$PYTHONPATH
 export LD_LIBRARY_PATH=$HOME/caffe/build/install/lib:$LD_LIBRARY_PATH
 export PATH=$HOME/caffe/build/install/bin:$PATH
 export SNPE_ROOT=$HOME/Qualcomm/snpe-1.35.0.698
+cd $HOME/Qualcomm/snpe-1.35.0.698/bin; source envsetup.sh -c ~/caffe > /dev/null; cd ~
+```
 
-cd $HOME/Qualcomm/snpe-1.35.0.698/bin; source envsetup.sh -c ~/caffe > /dev/null; cd ~`
 8. Try AlexNet example
   - Copy the `/home/gardei/Qualcomm/snpe-1.35.0.698/bin/x86_64-linux-clang/snpe-caffe-to-dlc` to the AlexNet scripts directory or put it on the path
   - Run from `$HOME/Qualcomm/snpe-1.35.0.698/models/alexnet/scripts`: `python setup_alexnet.py -d -a ./temp-assets-cache`
