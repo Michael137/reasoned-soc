@@ -38,5 +38,6 @@ cd $HOME/Qualcomm/snpe-1.35.0.698/bin; source envsetup.sh -c ~/caffe > /dev/null
   - Copy over the shared libraries to your device: `adb push $SNPE_ROOT/lib/dsp/lib* /dsp/snpe`
   - Benchmarks on device; run following from host:
     - `cd $SNPE_ROOT/benchmarks`
+    - Configure the `alexnet_sample.json` file to include DSP measurements and increase number of runs
     - `python snpe_bench.py -c alexnet_sample.json -a --profilinglevel detailed`
     - Export results `cd $SNPE_ROOT/benchmarks/alexnet/results/latest_results`
