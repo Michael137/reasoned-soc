@@ -9,7 +9,7 @@
 4. Install protobuf from source
 5. Check whether `libatomic.so.1` is in `$SNPE_ROOT/lib/aarch64-linux-gcc4.9/` already
   - Otherwise install using `apt` or equivalent
-6. Install Caffe (instead of Tensorflow since the latter since SNPE is not compatible with the latest TF versions):
+6. Install Caffe (see Tensorflow installation in section below; this can be used to run the Inception_v3 network):
   - gflags: `sudo apt-get install libgflags2 libgflags-dev`
   - BLAS: `sudo apt-get install libatlas-base-dev`
   - hdf5: `sudo apt-get install libhdf5-serial-dev`
@@ -47,3 +47,34 @@ cd $HOME/Qualcomm/snpe-1.35.0.698/bin; source envsetup.sh -c ~/caffe > /dev/null
 2. Activate your virtual environment
 3. Copy the [requirements.txt](requirements.txt) file to `$SNPE_ROOT`
 4. Run: `pip install -r requirements.txt`
+
+# Tensorflow
+- SNPE uses v1.6 (should be already included in the requirements.txt)
+- v1.6 can be installed by running: `python -m pip install tensorflow==1.6`
+## SNPE Tensorflow setup
+1.
+```bash
+export TENSORFLOW_DIR=`python -m pip show tensorflow | grep "Location" | awk '{print $2}'`/tensorflow
+```
+2. From `$SNPE_ROOT` run:
+```bash
+cd $SNPE_ROOT/bin; source envsetup.sh -t $TENSORFLOW_DIR > /dev/null; cd -
+```
+3. Get the model:
+- (with CPU runtime)
+```bash
+python $SNPE_ROOT/models/inception_v3/scripts/setup_inceptionv3.py -a ~/tmpdir -d -r cpu
+```
+- (with DSP runtime)
+```bash
+python $SNPE_ROOT/models/inception_v3/scripts/setup_inceptionv3.py -a ~/tmpdir -d -r dsp
+```
+- (with AIP runtime)
+```bash
+python $SNPE_ROOT/models/inception_v3/scripts/setup_inceptionv3.py -a ~/tmpdir -d -r aip
+```
+4. Follow example instructions from docs to run on host or Android target
+- The `--use_aip`/`--use_dsp` flags to `snpe-net-run` can be used to select the AIP or DSP runtimes specifically
+
+## Benchmarking Inception_v3
+
