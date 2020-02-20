@@ -41,3 +41,9 @@ cd $HOME/Qualcomm/snpe-1.35.0.698/bin; source envsetup.sh -c ~/caffe > /dev/null
     - Configure the `alexnet_sample.json` file to include DSP measurements and increase number of runs
     - `python snpe_bench.py -c alexnet_sample.json -a --profilinglevel detailed`
     - Export results `cd $SNPE_ROOT/benchmarks/alexnet/results/latest_results`
+
+# Installation from Virtual Environment
+1. Create a virtual environment from your `$SNPE_ROOT` folder
+2. Activate your virtual environment
+3. Copy the [requirements.txt](requirements.txt) file to `$SNPE_ROOT`
+4. Run: `pip install -r requirements.txt`
