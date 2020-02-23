@@ -1,0 +1,72 @@
+diff --git a/jni/main_multistream.cpp b/jni/main_multistream.cpp
+index 4733e62..9d414f6 100644
+--- a/jni/main_multistream.cpp
++++ b/jni/main_multistream.cpp
+@@ -98,8 +98,8 @@ static bool IsFindPeakPerformanceMode = false;
+ static bool IsAccuracy = false;
+ static int SamplesPerQuery = -1;
+ static int TargetQPS = -1;
+-static zdl::BulkSNPE::UserBufferList inputMaps, outputMaps;
+-static std::unique_ptr<zdl::BulkSNPE::BulkSNPE> bulksnpe(new zdl::BulkSNPE::BulkSNPE());
++static UserBufferList inputMaps, outputMaps;
++static std::unique_ptr<BulkSNPE> bulksnpe(new BulkSNPE());
+ 
+ // Function forward declaration
+ void FeedForward(const std::vector<mlperf::QuerySample> &samples);
+@@ -446,7 +446,7 @@ std::vector<std::vector<std::string>> preprocessInput(const std::vector<std::str
+ void createUserBuffer(zdl::DlSystem::UserBufferMap& userBufferMap,
+                       std::unordered_map<std::string, std::vector<uint8_t>>& applicationBuffers,
+                       std::vector<std::unique_ptr<zdl::DlSystem::IUserBuffer>>& snpeUserBackedBuffers,
+-                      std::unique_ptr<zdl::BulkSNPE::BulkSNPE>& bulksnpe,
++                      std::unique_ptr<BulkSNPE>& bulksnpe,
+                       const char * name,
+                       const bool isTf8Buffer)
+ {
+@@ -497,7 +497,7 @@ void createUserBuffer(zdl::DlSystem::UserBufferMap& userBufferMap,
+ }
+ 
+ bool loadInputUserBuffer(std::unordered_map<std::string, std::vector<uint8_t>>& applicationBuffers,
+-                         std::unique_ptr<zdl::BulkSNPE::BulkSNPE>& bulksnpe,
++                         std::unique_ptr<BulkSNPE>& bulksnpe,
+                          std::vector<std::string>& fileLines,
+                          zdl::DlSystem::UserBufferMap& inputMap,
+                          const bool isTf8Buffer)
+@@ -645,9 +645,9 @@ int main(int argc, char **argv) {
+     // First attempt to create as many SNPE instances as requested. If we cannot create
+     // as many requested instances, create as many as possible and continue.
+     size_t numCreatedInstances = 0;
+-    zdl::BulkSNPE::RuntimeConfigList runtimeconfigs;
++    RuntimeConfigList runtimeconfigs;
+     for (size_t j = 0; j < numRequestedInstances; j++) {
+-        zdl::BulkSNPE::RuntimeConfig runtimeConfig;
++        RuntimeConfig runtimeConfig;
+         if(isRuntimeListValid == false)
+         {
+             // Check the runtime
+@@ -690,7 +690,7 @@ int main(int argc, char **argv) {
+         lines.erase(lines.begin());
+     }
+ 
+-    zdl::BulkSNPE::BuildConfig buildConfig;
++    BuildConfig buildConfig;
+     buildConfig.container = container.get();
+     buildConfig.runtimeConfigList = runtimeconfigs;
+     buildConfig.outputBufferNames = outputLayers;
+@@ -724,7 +724,7 @@ int main(int argc, char **argv) {
+     std::vector<std::unordered_map <std::string, std::vector<uint8_t>>> outputBuffersVec(nums);
+     std::vector<std::unordered_map <std::string, std::vector<uint8_t>>> inputBuffersVec(nums);
+     std::vector <std::unique_ptr<zdl::DlSystem::IUserBuffer>> snpeUserBackedInputBuffers, snpeUserBackedOutputBuffers;
+-    zdl::BulkSNPE::UserBufferList inputMapList(nums), outputMapList(nums);
++    UserBufferList inputMapList(nums), outputMapList(nums);
+ 
+     const zdl::DlSystem::StringList innames = bulksnpe->getInputTensorNames();
+     const zdl::DlSystem::StringList outnames = bulksnpe->getOutputTensorNames();
+@@ -791,7 +791,7 @@ int main(int argc, char **argv) {
+ void FeedForward(const std::vector<mlperf::QuerySample> &samples) {
+    std::vector<mlperf::QuerySampleResponse> responses;
+    int nums = samples.size();
+-   zdl::BulkSNPE::UserBufferList inputMapList(nums), outputMapList(nums);
++   UserBufferList inputMapList(nums), outputMapList(nums);
+    for (int i = 0; i < nums; i++) {
+       mlperf::QuerySampleResponse response;
+       response.id = samples[i].id;
