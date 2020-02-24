@@ -76,5 +76,16 @@ python $SNPE_ROOT/models/inception_v3/scripts/setup_inceptionv3.py -a ~/tmpdir -
 4. Follow example instructions from docs to run on host or Android target
 - The `--use_aip`/`--use_dsp` flags to `snpe-net-run` can be used to select the AIP or DSP runtimes specifically
 
-## Benchmarking Inception_v3
+## Inception_v3 Benchmarking
+1. Copy [inception_v3_sample.json](snpe/benchmarks/inception_v3_sample.json) to your `$SNPE/benchmarks` directory
+2. Run the benchmark script
 
+## MobileNetSSD
+- This model has been tested on Tensorflow 1.11 and will throw errors with tensorflow modules above 1.14.
+  - `python -m pip install tensorflow=1.11`
+- Follow SNPE installation instructions for object detection model
+- 
+
+# MLPerf Benchmark Validation
+## From result sources
+## App
