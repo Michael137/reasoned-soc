@@ -1,0 +1,21 @@
+{
+  "Name":"deeplabv3",
+  "HostRootPath": "deeplabv3",
+  "HostResultsDir":"deeplabv3/results",
+  "DevicePath":"/data/local/tmp/snpebm",
+  "Devices":["824X002UM"],
+  "Runs": 16,
+
+  "Model": {
+      "Name": "deeplabv3",
+      "Dlc": "/home/gardei/deeplabv3/deeplabv3.dlc",
+      "InputList": "/home/gardei/deeplabv3/data/imagelist.txt",
+      "Data": [
+          "/home/gardei/deeplabv3/data"
+      ]
+  },
+
+  "Runtimes":["CPU", "DSP"],
+  "Measurements": ["timing"],
+  "CpuFallback": true
+}

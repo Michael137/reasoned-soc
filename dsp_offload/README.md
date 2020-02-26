@@ -41,6 +41,7 @@ cd $HOME/Qualcomm/snpe-1.35.0.698/bin; source envsetup.sh -c ~/caffe > /dev/null
     - Configure the `alexnet_sample.json` file to include DSP measurements and increase number of runs
     - `python snpe_bench.py -c alexnet_sample.json -a --profilinglevel detailed`
     - Export results `cd $SNPE_ROOT/benchmarks/alexnet/results/latest_results`
+  - **NOTE: add a `-d` flag to the `snpe_bench.py` invocation to debug any errors**
 
 # Installation from Virtual Environment
 1. Create a virtual environment from your `$SNPE_ROOT` folder
@@ -84,7 +85,18 @@ python $SNPE_ROOT/models/inception_v3/scripts/setup_inceptionv3.py -a ~/tmpdir -
 - This model has been tested on Tensorflow 1.11 and will throw errors with tensorflow modules above 1.14.
   - `python -m pip install tensorflow=1.11`
 - Follow SNPE installation instructions for object detection model
-- 
+- Push the mobilenet_ssd.dlc, imagelist.txt and images to the device
+- Use the `create_file_list.py` and `create_inceptionv3_raws.py` scripts to resize the alexnet images to the appropriate input dimensions and corresponding file list
+
+## DeepLabv3
+- Activate the virtual environment containing the Tensorflow and SNPE pre-requisuite installations
+- Follow the steps described in SNPE documentation
+- Preprocessing the input can be done by invoking [preprocess.py](snpe/benchmarks/preprocess.py) with a set of test images:
+  - E.g., `python preprocess.py ~/Qualcomm/snpe-1.35.0.698/models/alexnet/data`
+  - Note: the images will be resized to 512x512 as expected per the SNPE documentation for DeepLabv3
+- Create an `imagelist.txt`
+- Run the benchmark suite using [deeplabv3.json](snpe/benchmarks/deeplabv3.json)
+  - Make sure the `imagelist.txt` contains the path and filenames for the **.raw** files on the device
 
 # MLPerf Benchmark Validation
 ## From result sources

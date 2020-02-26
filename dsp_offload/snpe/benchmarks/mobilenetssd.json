@@ -1,0 +1,22 @@
+{
+  "Name":"mobilenet_ssd",
+  "HostRootPath": "mobilenet_ssd",
+  "HostResultsDir":"mobilenet_ssd/results",
+  "DevicePath":"/data/local/tmp/snpebm",
+  "Devices":["454d40f3"],
+  "Runs": 16,
+
+  "Model": {
+      "Name": "mobilenet_ssd",
+      "Dlc": "~/mobilenet_v2/mobilenet_ssd.dlc",
+      "InputList": "~/mobilenet_v2/data/imagelist.txt",
+      "Data": [
+          "~/mobilenet_v2/data"
+      ]
+  },
+
+  "Runtimes":["DSP", "CPU"],
+  "Measurements": ["timing"],
+  "CpuFallback": ["true"],
+  "BufferTypes": ["ub_float","ub_tf8"]
+}
