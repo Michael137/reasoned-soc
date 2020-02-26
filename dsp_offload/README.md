@@ -87,6 +87,8 @@ python $SNPE_ROOT/models/inception_v3/scripts/setup_inceptionv3.py -a ~/tmpdir -
 - Follow SNPE installation instructions for object detection model
 - Push the mobilenet_ssd.dlc, imagelist.txt and images to the device
 - Use the `create_file_list.py` and `create_inceptionv3_raws.py` scripts to resize the alexnet images to the appropriate input dimensions and corresponding file list
+- Run the benchmark suite using [mobilenetssd.json](snpe/benchmarks/mobilenetssd.json)
+  - Make sure the `imagelist.txt` contains the path and filenames for the **.raw** files on the device
 
 ## DeepLabv3
 - Activate the virtual environment containing the Tensorflow and SNPE pre-requisuite installations

@@ -3,20 +3,19 @@
   "HostRootPath": "mobilenet_ssd",
   "HostResultsDir":"mobilenet_ssd/results",
   "DevicePath":"/data/local/tmp/snpebm",
-  "Devices":["454d40f3"],
+  "Devices":["824X002UM"],
   "Runs": 16,
 
   "Model": {
       "Name": "mobilenet_ssd",
-      "Dlc": "~/mobilenet_v2/mobilenet_ssd.dlc",
-      "InputList": "~/mobilenet_v2/data/imagelist.txt",
+      "Dlc": "/home/gardei/mobilenet_v2/mobilenet_ssd.dlc",
+      "InputList": "/home/gardei/mobilenet_v2/data/imagelist.txt",
       "Data": [
-          "~/mobilenet_v2/data"
+          "/home/gardei/mobilenet_v2/data"
       ]
   },
 
   "Runtimes":["DSP", "CPU"],
   "Measurements": ["timing"],
-  "CpuFallback": ["true"],
-  "BufferTypes": ["ub_float","ub_tf8"]
+  "CpuFallback": true
 }
