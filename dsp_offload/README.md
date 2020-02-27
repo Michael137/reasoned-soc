@@ -108,6 +108,7 @@ Here we aim to reproduce the results of the MLPerf closed [inference results](ht
 1. Get the [Qualcomm source code](https://github.com/mlperf/inference_results_v0.5/blob/master/closed/Qualcomm/code/mobilenet/reference/VERSION.txt)
 2. Check the SNPE version used from the [systems directory](https://github.com/mlperf/inference_results_v0.5/blob/master/closed/Qualcomm/systems/SDM855.json)
 3. Download the appropriate SNPE SDK version from [Qualcomm](https://developer.qualcomm.com/software/qualcomm-neural-processing-sdk/tools)
+  - Follow the above SNPE SDK installation and setup instructions
 4. Download the appropriate dataset and convert the images to raw format and the appropriate size
   - One can use `$SNPE_ROOT/models/inception_v3/scripts/create_inceptionv3_raws.py` for this
 5. Create an `imagelist.txt` that contains the path to the **.raw** files
