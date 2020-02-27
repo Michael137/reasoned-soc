@@ -96,6 +96,7 @@ python $SNPE_ROOT/models/inception_v3/scripts/setup_inceptionv3.py -a ~/tmpdir -
 - Preprocessing the input can be done by invoking [preprocess.py](snpe/benchmarks/preprocess.py) with a set of test images:
   - E.g., `python preprocess.py ~/Qualcomm/snpe-1.35.0.698/models/alexnet/data`
   - Note: the images will be resized to 512x512 as expected per the SNPE documentation for DeepLabv3
+  - Note: inspired by [this Qualcomm project](https://developer.qualcomm.com/project/image-segmentation-using-deeplabv3)
 - Create an `imagelist.txt`
 - Run the benchmark suite using [deeplabv3.json](snpe/benchmarks/deeplabv3.json)
   - Make sure the `imagelist.txt` contains the path and filenames for the **.raw** files on the device
