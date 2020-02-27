@@ -103,4 +103,16 @@ python $SNPE_ROOT/models/inception_v3/scripts/setup_inceptionv3.py -a ~/tmpdir -
 
 # MLPerf Benchmark Validation
 ## From result sources
+Here we aim to reproduce the results of the MLPerf closed [inference results](https://github.com/mlperf/inference_results_v0.5/tree/master/closed/Qualcomm)
+
+1. Get the [Qualcomm source code](https://github.com/mlperf/inference_results_v0.5/blob/master/closed/Qualcomm/code/mobilenet/reference/VERSION.txt)
+2. Check the SNPE version used from the [systems directory](https://github.com/mlperf/inference_results_v0.5/blob/master/closed/Qualcomm/systems/SDM855.json)
+3. Download the appropriate SNPE SDK version from [Qualcomm](https://developer.qualcomm.com/software/qualcomm-neural-processing-sdk/tools)
+4. Download the appropriate dataset and convert the images to raw format and the appropriate size
+  - One can use `$SNPE_ROOT/models/inception_v3/scripts/create_inceptionv3_raws.py` for this
+5. Create an `imagelist.txt` that contains the path to the **.raw** files
+6. Follow the model conversion instructions from the MLPerf submission of step 1
+7. Run model (i.e., the **.dlc**) file through `$SNPE_ROOT/benchmarks/snpe_bench.py`
+  - An example benchmark JSON configuration is in [mobilenet_v1.json](snpe/benchmarks/mobilenet_v1.json)
+
 ## App

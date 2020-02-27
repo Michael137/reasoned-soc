@@ -1,0 +1,22 @@
+{
+    "Name":"Mobilenet_v1",
+    "HostRootPath": "mobilenet_v1",
+    "HostResultsDir":"mobilenet_v1/results",
+    "DevicePath":"/data/local/tmp/snpebm",
+    "Devices":["454d40f3"],
+    "HostName": "localhost",
+    "Runs":16,
+
+    "Model": {
+        "Name": "MOBILENET_V1",
+        "Dlc": "/home/gardei/Git/reasoned-soc/dsp_offload/mlperf/mobilenet_v1_1.0_224.dlc",
+        "InputList": "/home/gardei/ILSVRC2012_img_val/imagelist.txt",
+        "Data": [
+            "/home/gardei/ILSVRC2012_img_val/data"
+        ]
+    },
+
+    "Runtimes":["DSP", "CPU"],
+    "Measurements": ["timing"],
+	"CpuFallback": true
+}
