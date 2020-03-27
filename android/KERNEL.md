@@ -30,3 +30,13 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 2. While still in the boot screen, run `fastboot boot twrp-<recovery image name>.img` for your device
 3. Selet **Restore** and locate the backup folder on the sdcard
 4. Reboot
+
+# Troubleshooting
+- See some problems we ran into in this [XDA Developers thread](https://forum.xda-developers.com/pixel-3/help/android-recovery-factory-reset-t4072515/)
+## Flash factory image
+1. Download and unzip factory image from [here](https://developers.google.com/android/images)
+2. Run `flash-all.sh`. **Note**: be patient or erase system, data and cache using TWRP and run the flash command after that
+3. **Optional**: To re-install the **userdebug** image, check it out using `lunch`, build it within AOSP for your target device and flash it
+
+# Emulating Custom Kernel
+
