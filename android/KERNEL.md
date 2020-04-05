@@ -50,17 +50,17 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
   - https://forum.xda-developers.com/pixel-3a/development/compiling-aosp-scratch-t3958141
 
 1. add repo to path
-2. build/envsetup.sh
-3. repo init
+2. repo init
   - Choose compatible branch from: https://source.android.com/setup/start/build-numbers#source-code-tags-and-builds
-4. repo sync -qc -j12
+3. repo sync -qc -j12
+4. build/envsetup.sh
 5. lunch <variation>
   - For Pixel 3 <variation> is: aosp_blueline-userdebug (see https://source.android.com/setup/build/running)
-6. make -j14
-  - You might have to run: `make SELINUX_IGNORE_NEVERALLOWS=true -j14` if you are on MacOS
-7. Download the vendor binaries and extract them at the root of AOSP
+6. Download the vendor binaries and extract them at the root of AOSP
   - Qualcomm and Google binaries for the particular build and device numbers are available [here](https://developers.google.com/android/drivers)
   - For more info see the [Android docs on this topic](https://source.android.com/setup/build/downloading#extracting-proprietary-binaries)
+7. make -j14
+  - You might have to run: `make SELINUX_IGNORE_NEVERALLOWS=true -j14` if you are on MacOS
 8. Reboot
 9. (Optional) Install Google Play Store:
   - Follow [this SO post](https://stackoverflow.com/questions/41695566/install-google-apps-on-aosp-build/41818710#41818710)
@@ -80,6 +80,8 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
       - `adb reboot`
 10. (Optional) Install Chrome browser:
   - Download and [install](https://stackoverflow.com/questions/7076240/install-an-apk-file-from-command-prompt) the Chrome browser apk
+
+## Embedding Custom Kernel
 
 ## Troubleshooting
 - sha256sum not found: brew install coreutils
