@@ -31,8 +31,10 @@ export PATH=$HOME/caffe/build/install/bin:$PATH
 export SNPE_ROOT=$HOME/Qualcomm/snpe-1.35.0.698
 cd $HOME/Qualcomm/snpe-1.35.0.698/bin; source envsetup.sh -c ~/caffe > /dev/null; cd ~
 ```
-
-8. Try AlexNet example
+8. Make sure the **libasdprpc.so** is in `/system/vendor/lib/rfsa/adsp` on your device. Otherwise the benchmarks will not work using the DSP runtime
+  - See [this Qualcomm Forum Thread](https://developer.qualcomm.com/forum/qdn-forums/software/hexagon-dsp-sdk/toolsinstallation/34446) for more information
+  - If the shared object is missing copy it from the Hexagon SDK like so: `adb push $HOME/Qualcomm/Hexagon_SDK/3.5.1/libs/common/remote/ship/android_Release_aarch64/libadsprpc.so /system/vendor/lib/rfsa/adsp/libadsprpc.so`
+9. Try AlexNet example
   - Copy the `/home/gardei/Qualcomm/snpe-1.35.0.698/bin/x86_64-linux-clang/snpe-caffe-to-dlc` to the AlexNet scripts directory or put it on the path
   - Run from `$HOME/Qualcomm/snpe-1.35.0.698/models/alexnet/scripts`: `python setup_alexnet.py -d -a ./temp-assets-cache`
   - Copy over the shared libraries to your device: `adb push $SNPE_ROOT/lib/dsp/lib* /dsp/snpe`

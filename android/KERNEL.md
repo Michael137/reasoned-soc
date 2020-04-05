@@ -80,6 +80,7 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
       - `adb reboot`
 10. (Optional) Install Chrome browser:
   - Download and [install](https://stackoverflow.com/questions/7076240/install-an-apk-file-from-command-prompt) the Chrome browser apk
+11. (Optional) Make sure the Hexagon DSP runtime works. [If the libadsprpc.so is missing copy it from the Hexagon SDK](https://developer.qualcomm.com/forum/qdn-forums/software/hexagon-dsp-sdk/toolsinstallation/34446)
 
 ## Embedding Custom Kernel
 
