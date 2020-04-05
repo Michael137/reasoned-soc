@@ -119,3 +119,14 @@ Here we aim to reproduce the results of the MLPerf closed [inference results](ht
   - An example benchmark JSON configuration is in [mobilenet_v1.json](snpe/benchmarks/mobilenet_v1.json)
 
 ## App
+
+# FastRPC
+To check whether FastRPC works run the `$HEXAGON_SDK/examples/common/rpcperf` example shipped with the Hexagon SDK.
+
+## Troubleshooting
+- SDK setup script: /lib32 not found
+  - create a symlink at /lib32 to /lib: ln -s /lib /lib32
+- `make tree V=android_Debug` fails because of qemu segfault and test assertion failure
+  - Try running on an Ubuntu VM
+- Device model not supported
+  - `rpcperf.py` uses the device name in the command `adb -s <device name>`. If you only have a single device name connected simply hardcode the device name to a string that contains whatever shows up in the `adb devices` command's 1st column

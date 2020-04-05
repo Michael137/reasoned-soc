@@ -81,8 +81,19 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 10. (Optional) Install Chrome browser:
   - Download and [install](https://stackoverflow.com/questions/7076240/install-an-apk-file-from-command-prompt) the Chrome browser apk
 11. (Optional) Make sure the Hexagon DSP runtime works. [If the libadsprpc.so is missing copy it from the Hexagon SDK](https://developer.qualcomm.com/forum/qdn-forums/software/hexagon-dsp-sdk/toolsinstallation/34446)
+12. (Optional) Make sure Qualcomm FastRPC works. Check the `$HEXAGON_SDK/examples/common/rpcperf` example
+  - More info in the [../dsp_offload/README.md](../dsp_offload/README.md) directory of this repository
 
 ## Embedding Custom Kernel
+The kernel and AOSP projects are separate. To change the kernel of an AOSP build one has to check out and build the kernel image separately, embed it into the AOSP tree, rebuild the boot image and reflash the device.
+### Modern Kernel
+Follow the instructions in the [Android docs](https://source.android.com/setup/build/building-kernels) to build and embed the kernel in the AOSP tree
+
+### Old kernel
+1. Get the kernel version to install from your AOSP build. See the [docs](https://source.android.com/setup/build/building-kernels#id-version-from-aosp)
+2. Follow the build instructions in the [docs](https://source.android.com/setup/build/building-kernels-deprecated)
+  - The prebuilt Google toolchain does not come with a cross-compiler anymore. Instead set `CROSS_COMPILE=<some prefix>/android-ndk-r10e/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-`
+  - Download the Android toolchain with the cross compiler from [here](https://android.magicer.xyz/ndk/guides/standalone_toolchain.html)
 
 ## Troubleshooting
 - sha256sum not found: brew install coreutils
@@ -101,3 +112,6 @@ sed: illegal option -- z:
 - **ERROR: Couldn't create a device interface iterator:**
   - Your fastboot is likely outdated because it is using the version that got built with AOSP (check using `which fastboot`)
   - [Download the latest fastboot and adb](https://android.stackexchange.com/questions/209725/fastboot-devices-command-doesnt-work-after-macos-high-sierra-10-14-4-upgrade) and use these
+  - E.g., /Users/gardei/platform-tools/fastboot flashall -w
+- Fastboot operation not supported:
+  - Flash the factory image for the operating system you are replacing and retry the fastboot flashall
