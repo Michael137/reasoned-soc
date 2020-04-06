@@ -122,12 +122,15 @@ Here we aim to reproduce the results of the MLPerf closed [inference results](ht
 ## SNPE
 Master benchmark object is created in `snpe_bm.py` in `BenchmarkFactory`'s `make_benchmarks`. It uses the `SnapDnnCppDroidBenchmark` class to create a script that executes benchmarking commands.
 The core of the benchmark command is: `snpe-net-run <configuration options>` where the flags are taken from the benchmark JSON. E.g., it adds `--debug`, `--profiling_level`, `--perf_profile` to the command.
-The source to [snpe-net-run](https://developer.qualcomm.com/docs/snpe/benchmarking.html) that's used for `snpe_bench.py` is not public but a similar application is available in the examples (see [this thread](https://developer.qualcomm.com/comment/16248)): [$SNPE_ROOT/examples/NativeCpp/SampleCode](https://developer.qualcomm.com/docs/snpe/cplus_plus_tutorial.html)
+The source to [snpe-net-run](https://developer.qualcomm.com/docs/snpe/benchmarking.html) that's used for `snpe_bench.py` is not public but a similar application is available in the examples (see [this thread](https://developer.qualcomm.com/comment/16248)): [$SNPE_ROOT/examples/NativeCpp/SampleCode](https://developer.qualcomm.com/docs/snpe/cplus_plus_tutorial.html). The created `snpe-bench_cmds.sh` file is located in the benchmarks/<model>/ folder alongside the `results` folder.
 
 Profiling capabilities are exposed through the SNPEBuilder C++ class. Setting profiling can be done as described in [these docs](https://developer.qualcomm.com/docs/snpe/group__c__plus__plus__apis.html).
 
 ## FastRPC
 To check whether FastRPC works run the `$HEXAGON_SDK/examples/common/rpcperf` example shipped with the Hexagon SDK.
+
+- [FastRPC Kernel Driver](https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/Documentation/devicetree/bindings/qdsp/msm-fastrpc.txt): "MSM FastRPC driver implements an **IPC (Inter-Processor Communication) mechanism** that allows for clients to transparently make **remote method invocations across DSP and APPS boundaries**. This enables developers to **offload tasks to the DSP and free up the application processor for other tasks.**"
+- When using `rpcperf` for FastRPC overhead measurements, make sure to build the kernel using the perf-defconfig (to disable certain performance degrading debug features)
 
 ### Troubleshooting
 - SDK setup script: /lib32 not found
