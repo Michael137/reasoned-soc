@@ -118,12 +118,18 @@ Here we aim to reproduce the results of the MLPerf closed [inference results](ht
 7. Run model (i.e., the **.dlc**) file through `$SNPE_ROOT/benchmarks/snpe_bench.py`
   - An example benchmark JSON configuration is in [mobilenet_v1.json](snpe/benchmarks/mobilenet_v1.json)
 
-## App
+# Profiling/Benchmarking
+## SNPE
+Master benchmark object is created in `snpe_bm.py` in `BenchmarkFactory`'s `make_benchmarks`. It uses the `SnapDnnCppDroidBenchmark` class to create a script that executes benchmarking commands.
+The core of the benchmark command is: `snpe-net-run <configuration options>` where the flags are taken from the benchmark JSON. E.g., it adds `--debug`, `--profiling_level`, `--perf_profile` to the command.
+The source to [snpe-net-run](https://developer.qualcomm.com/docs/snpe/benchmarking.html) that's used for `snpe_bench.py` is not public but a similar application is available in the examples (see [this thread](https://developer.qualcomm.com/comment/16248)): [$SNPE_ROOT/examples/NativeCpp/SampleCode](https://developer.qualcomm.com/docs/snpe/cplus_plus_tutorial.html)
 
-# FastRPC
+Profiling capabilities are exposed through the SNPEBuilder C++ class. Setting profiling can be done as described in [these docs](https://developer.qualcomm.com/docs/snpe/group__c__plus__plus__apis.html).
+
+## FastRPC
 To check whether FastRPC works run the `$HEXAGON_SDK/examples/common/rpcperf` example shipped with the Hexagon SDK.
 
-## Troubleshooting
+### Troubleshooting
 - SDK setup script: /lib32 not found
   - create a symlink at /lib32 to /lib: ln -s /lib /lib32
 - `make tree V=android_Debug` fails because of qemu segfault and test assertion failure
