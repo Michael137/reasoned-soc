@@ -18,7 +18,7 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 3. Selet **Restore** and locate the backup folder on the sdcard
 4. Reboot
 
-# Troubleshooting
+### Troubleshooting
 - See some problems we ran into in [this](https://forum.xda-developers.com/pixel-3/help/android-recovery-factory-reset-t4072515/) and [this](https://forum.xda-developers.com/pixel-3/help/building-aospblueline-userdebug-server-t4073455) XDA Developers thread
 ## Flash factory image
 0. Boot into fastboot bootloader menu (press power and volume down for a few seconds)
