@@ -36,27 +36,27 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
   - https://www.polidea.com/blog/How-to-Build-your-Own-Android-Based-on-AOSP/
   - https://forum.xda-developers.com/pixel-3a/development/compiling-aosp-scratch-t3958141
 
-1. add repo to path
-2. repo init
+1. add `repo` command to path
+2. `repo init`
   - Choose compatible branch from: https://source.android.com/setup/start/build-numbers#source-code-tags-and-builds
-3. repo sync -qc -j12
-4. build/envsetup.sh
-5. lunch <variation>
+3. `repo sync -qc -j12`
+4. `source build/envsetup.sh`
+5. `lunch <variation>`
   - For Pixel 3 <variation> is: aosp_blueline-userdebug (see https://source.android.com/setup/build/running)
 6. Download the vendor binaries and extract them at the root of AOSP
   - Qualcomm and Google binaries for the particular build and device numbers are available [here](https://developers.google.com/android/drivers)
   - For more info see the [Android docs on this topic](https://source.android.com/setup/build/downloading#extracting-proprietary-binaries)
-7. make -j14
+7. `make -j14`
   - You might have to run: `make SELINUX_IGNORE_NEVERALLOWS=true -j14` if you are on MacOS
 8. Reboot
 9. (Optional) Install Google Play Store:
   - Follow [this SO post](https://stackoverflow.com/questions/41695566/install-google-apps-on-aosp-build/41818710#41818710)
     - In the above guide, **PrebuiltGmsCore** is renamed **PrebuiltGmsCorePi** in the Android 9 build
     - To be able to push files run:
-      - adb disable-verity
-      - adb root
-      - adb remount
-      - adb shell mount -o rw,system /;
+      - `adb disable-verity`
+      - `adb root`
+      - `adb remount`
+      - `adb shell mount -o rw,system /;`
     - Once installed, if the phone enters a bootloop this is likely due to whitelisting issues. You will have to add the neccessary permissions to the **/etc/permissions/privapp-permissions-blueline** file. To get the package name and permissions to add follow the [Android docs](https://source.android.com/devices/tech/config/perms-whitelist) on this topic. In short you have do the following:
       - `adb pull /system/build.prop`
       - Edit build.prop s.t. **ro.control_privapp_permissions=log**
