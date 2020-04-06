@@ -6,7 +6,7 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 1. Download the image and TWRP source zip for your device on the [TWRP site](https://twrp.me/google/googlepixel3.html) ([link](https://twrp.me/google/googlepixel3.html) Pixel 3).
 2. Install ADB (through Android Studio) and Fastboot
 3. Identify the boot partition to back-up (as described in above SO post). For us these were:
-```/dev/block/sda11 (boot_a)
+`/dev/block/sda11 (boot_a)
 /dev/block/sda12 (boot_b)
 
 /dev/block/sda3 (keystore)
@@ -16,7 +16,7 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 /dev/block/sda6 (system_b)
 
 /dev/block/sda9 (vendor_a)
-/dev/block/sda9 (vendor_b)```
+/dev/block/sda9 (vendor_b)`
 5. Run `adb pull /dev/block/<partition-name>`
 6. Run `adb reboot-bootloader` and wait until the device is in the boot screen
 7. While still in the boot screen, run `fastboot boot twrp-<recovery image name>.img` that you downloaded in step 1
