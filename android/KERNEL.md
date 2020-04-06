@@ -40,7 +40,7 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 2. `repo init`
   - Choose compatible branch from: https://source.android.com/setup/start/build-numbers#source-code-tags-and-builds
 3. `repo sync -qc -j12`
-4. `source build/envsetup.sh`
+4. `build/envsetup.sh`
 5. `lunch <variation>`
   - For Pixel 3 <variation> is: aosp_blueline-userdebug (see https://source.android.com/setup/build/running)
 6. Download the vendor binaries and extract them at the root of AOSP
