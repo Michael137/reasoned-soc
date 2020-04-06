@@ -11,8 +11,6 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 7. While still in the boot screen, run `fastboot boot twrp-<recovery image name>.img` that you downloaded in step 1
 8. You can now backup to the SDCard from within the TWRP OS and then adb pull again. E.g., `adb pull /data/media/0/TWRP/BACKUPS/824X002UM/1970-03-16--01-43-56_blueline-userdebug_9_PI_engguchen2018071817`
 
-# Installing Custom Kernel
-
 # Reverting to Back-up Kernel
 ## From TWRP back-up
 1. Run `adb reboot-bootloader` and wait until the device is in the boot screen
