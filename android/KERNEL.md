@@ -86,6 +86,22 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 
 ## Embedding Custom Kernel
 The kernel and AOSP projects are separate. To change the kernel of an AOSP build one has to check out and build the kernel image separately, embed it into the AOSP tree, rebuild the boot image and reflash the device.
+
+1. Build kernel
+2. Copy `Image.lz4` file to some `<DIR>`
+3. `export TARGET_PREBUILT_KERNEL=<DIR>/Image.lz4`
+4. From the AOSP root run: `m bootimage -j12`
+8. `adb root`
+9. `adb remount -R`
+5. Copy the *.ko files from the kernel build output to `/vendor/lib/modules` on your device
+  - `adb push <KERNEL SOURCE>/group/brooks/mbuch/kernels/msm/out/android-msm-pixel-4.9/dist/*.ko /vendor/lib/modules`
+6. `adb reboot-bootloader`
+6. `fastboot flash boot out/target/product/blueline/boot.img`
+7. Reboot
+8. Check kernel version in adb shell using `uname -a` or `cat /proc/version`
+
+(Above instructions were taken from [this thread on a broken touchscreen driver](https://groups.google.com/forum/#!topic/android-building/ou630PviyDc))
+
 ### Modern Kernel
 Follow the instructions in the [Android docs](https://source.android.com/setup/build/building-kernels) to build and embed the kernel in the AOSP tree
 
