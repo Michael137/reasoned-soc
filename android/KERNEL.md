@@ -98,6 +98,14 @@ Instructions are mostly from [Android docs](https://source.android.com/setup/bui
   - The prebuilt Google toolchain does not come with a cross-compiler anymore. Instead set `CROSS_COMPILE=<some prefix>/android-ndk-r10e/toolchains/aarch64-linux-android-4.9/prebuilt/linux-x86_64/bin/aarch64-linux-android-`
   - Download the Android toolchain with the cross compiler from [here](https://android.magicer.xyz/ndk/guides/standalone_toolchain.html)
 
+### Customizing Kernel Configuration
+1. For modern Kernels the defconfig can be specified in the top-level `build.config` file. The custom defconfig file should be called `<custom name>_defconfig`.
+2. Navigate to `private/msm-google/arch/arm64/configs/`
+3. `cp <defconfig template> <custom name>_defconfig`
+4. build/build.sh
+
+The defconfig in `private/msm-google/defconfig` gets checked against the contents of `private/msm-google/arch/arm64/configs/<custom name>_defconfig`
+
 ## Troubleshooting
 - sha256sum not found: brew install coreutils
 - UTF-8 encoding:https://stackoverflow.com/questions/26067350/unmappable-character-for-encoding-ascii-but-my-files-are-in-utf-8
