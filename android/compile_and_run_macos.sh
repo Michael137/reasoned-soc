@@ -1,9 +1,9 @@
 #!/bin/bash
 
 FILE=$1
-OUT_FILE=$(echo "${FILE}" | cut -f 1 -d '.')
-OS=linux
-NDK_ROOT=$HOME/android-ndk-r21
+OUT_FILE=$(echo "${FILE}" | cut -f 1 -d '.').out
+OS=darwin
+NDK_ROOT=$HOME/Library/Android/sdk/ndk/21.0.6113669
 LLVM_TOOLCHAIN="$NDK_ROOT/toolchains/llvm/prebuilt/${OS}-x86_64"
 INSTALL_DIR=/data/local/tmp
 
