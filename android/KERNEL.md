@@ -65,6 +65,9 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
       - `adb shell`
         - Search the `logcat` for the string "Privileged permission". Now add a permissions whitelist file for your device into /etc/permissions. E.g., for Pixel 3 blueline it is **/etc/permissions/privapp-permissions-blueline**
       - `adb reboot`
+  - **Troubleshooting**: For Android 10 you can download the Google Services Framework (GSF), Play Services (GMS) and [Phonesky](https://androidforums.com/threads/what-exactly-is-phonesky-apk.755972/) APKs and install them to the directories above. For Android 10 (i.e., not Android Pie), install the GMS APK to `/system/priv-app/GmsCore/GmsCore.apk`. Then add the necessary whitelist permissions as outlined above.
+    - See [this SO post](https://android.stackexchange.com/questions/209781/install-google-play-services-without-google-play-store) and [this forum post](https://www.element14.com/community/community/designcenter/single-board-computers/riotboard/blog/2014/05/14/installing-google-play-services-and-google-play-store-on-riotboard) for more info on these APKs
+
 10. (Optional) Install Chrome browser:
   - Download and [install](https://stackoverflow.com/questions/7076240/install-an-apk-file-from-command-prompt) the Chrome browser apk
 11. (Optional) Make sure the Hexagon DSP runtime works. [If the libadsprpc.so is missing copy it from the Hexagon SDK](https://developer.qualcomm.com/forum/qdn-forums/software/hexagon-dsp-sdk/toolsinstallation/34446)
@@ -141,3 +144,9 @@ sed: illegal option -- z:
   - E.g., /Users/gardei/platform-tools/fastboot flashall -w
 - Fastboot operation not supported:
   - Flash the factory image for the operating system you are replacing and retry the fastboot flashall
+
+# Compiling code to run on an Android phone
+Here we describe the process of compiling C code, pushing the binary to an Android device and running it through ADB.
+
+1. Download the Android NDK
+2. See the [Linux compile.sh](./compile_and_run_linux.sh) or the [MacOS compile.sh](./compile_and_run_macos.sh) for the actual compilation/running the binary
