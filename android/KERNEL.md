@@ -99,12 +99,27 @@ Instructions are mostly from [Android docs](https://source.android.com/setup/bui
   - Download the Android toolchain with the cross compiler from [here](https://android.magicer.xyz/ndk/guides/standalone_toolchain.html)
 
 ### Customizing Kernel Configuration
-1. For modern Kernels the defconfig can be specified in the top-level `build.config` file. The custom defconfig file should be called `<custom name>_defconfig`.
-2. Navigate to `private/msm-google/arch/arm64/configs/`
-3. `cp <defconfig template> <custom name>_defconfig`
-4. build/build.sh
-
-The defconfig in `private/msm-google/defconfig` gets checked against the contents of `private/msm-google/arch/arm64/configs/<custom name>_defconfig`
+For modern Kernels the defconfig can be specified in the top-level `build.config` file. The custom defconfig file should be called `<custom name>_defconfig`.
+1. Navigate to `private/msm-google/arch/arm64/configs/`
+2. `cp <defconfig template> <custom name>_defconfig`
+  - For Pixel 3 Android 10 blueline the config is **b1c1_defconfig**
+3. Make any changes to your custom config
+4. Comment out the `POST_DEFCONFIG_CMDS` line in `build.config`
+  - These perform `check_defconfig` and `update_nocfig_config` which will prevent you from customizing the defconfig
+5. Comment out following chunk of the `prepare3` target in the main kernel makefile (e.g., `msm/private/msm-google/Makefile`):
+`ifneq ($(KBUILD_SRC),)
+...
+... $(srctree) is not clean, please run 'make mkrpoper'
+endif
+`
+  - By default the build does not allow modifications to the source. By commenting out the above check the compilation should now go through with your custom defconfig
+6. Follow [these steps](https://unix.stackexchange.com/q/421479) to save the custom defconfig configuration. These steps are outlined below (run from kernel source root, i.e., `msm/private/msm-google`)
+  - `make ARCH=arm64 <custom name>_defconfig`
+  - `diff -u .config ./arch/arm64/configs/<custom name>_defconfig | diffstat` should show your additions and potentially some more added by the build system
+  - `grep <your added feature> .config` should show your features added
+  - make ARCH=arm64 savedefconfig
+  - `grep <your added feature> defconfig` should still show the additions you are interested in
+7. Run `build/build.sh` from the root of the overall msm build repo (not necessarily the kernel source)
 
 ## Troubleshooting
 - sha256sum not found: brew install coreutils
