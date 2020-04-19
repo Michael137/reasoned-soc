@@ -135,7 +135,7 @@ endif
 - sepolicy_tests segfault:
   - https://stackoverflow.com/questions/58763047/failed-sepolicy-check-android-10-building-pixel-3a-xl
   - https://groups.google.com/forum/#!topic/android-building/_VyLXSosgoo
-sed: illegal option -- z:
+- sed: illegal option -- z:
   - https://stackoverflow.com/questions/43696304/how-do-i-fix-sed-illegal-option-r-in-macos-sierra-android-build
 - On following th errror **ld: symbol(s) not found for architecture i386**, your mac sdk is likely too high. Solution: downgrade SDK to what is supported by your AOSP build
 - **ERROR: Couldn't create a device interface iterator:**
