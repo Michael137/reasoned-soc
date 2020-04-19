@@ -10,4 +10,4 @@ mv Image.lz4 "${KERNEL_DIRNAME}/"
 scp -i ~/.ssh/chips mbuch@acc40.int.seas.harvard.edu:/group/brooks/mbuch/kernels/msm/out/android-msm-pixel-4.9/dist/*.ko ${KERNEL_DIRNAME}/
 
 echo "Copied to: ${KERNEL_DIRNAME}"
-
+echo "Run: export TARGET_PREBUILT_KERNEL=$PWD/${KERNEL_DIRNAME}/Image.lz4"
