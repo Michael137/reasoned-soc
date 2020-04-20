@@ -2103,7 +2103,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		interrupted = wait_for_completion_interruptible(&ctx->work);
 		VERIFY(err, 0 == (err = interrupted));
 		ktime_get_ts64(&end);
-		final = timespec64_sub(start, end);
+		final = timespec64_sub(end, start);
 		printk(KERN_ALERT "DEBUG: %s (interrupted wait for completion)\n",__FUNCTION__);
 		printk(KERN_ALERT "TIME: %s (execution (s): %llu.%0.9u\n",__FUNCTION__,(u64)final.tv_sec, (u32)final.tv_nsec);
 		if (err)
@@ -3860,7 +3860,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 		break;
 	}
 	ktime_get_ts64(&end);
-	final = timespec64_sub(start, end);
+	final = timespec64_sub(end, start);
 	printk(KERN_ALERT "TIME: %s %s (ioctl (s): %llu.%0.9u\n",__FUNCTION__, decoded, (u64)final.tv_sec, (u32)final.tv_nsec);
  bail:
 	return err;
