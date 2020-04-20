@@ -1456,6 +1456,9 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 	pages = smq_phy_page_start(sc, list);
 	ipage = pages;
 
+	// 137: profile additions
+	ctx->fl->profile = 1;
+
 	PERF(ctx->fl->profile, GET_COUNTER(perf_counter, PERF_MAP),
 	for (i = 0; i < bufs; ++i) {
 		uintptr_t buf = (uintptr_t)lpra[i].buf.pv;
@@ -1870,7 +1873,7 @@ static int fastrpc_invoke_send(struct smq_invoke_ctx *ctx,
 	msg->invoke.page.addr = ctx->buf ? ctx->buf->phys : 0;
 	msg->invoke.page.size = buf_page_size(ctx->used);
 
-	printk(KERN_ALERT "DEBUG: fastrpc_init %s %d\nfl->apps->glink: %d\ninvoke.page.addr: %lu\ninvoke.page.size: %zd\npid: %u\ntid: %u\n",__FUNCTION__,__LINE__, fl->apps->glink,msg->invoke.page.addr,msg->invoke.page.size,msg->pid,msg->tid);
+	printk(KERN_ALERT "DEBUG: %s %d\nfl->apps->glink: %d\ninvoke.page.addr: %lu\ninvoke.page.size: %zd\npid: %u\ntid: %u\n",__FUNCTION__,__LINE__, fl->apps->glink,msg->invoke.page.addr,msg->invoke.page.size,msg->pid,msg->tid);
 
 	if (fl->apps->glink) {
 		if (fl->ssrcount != channel_ctx->ssrcount) {
@@ -2023,6 +2026,13 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 	int err = 0;
 	struct timespec invoket = {0};
 	int64_t *perf_counter = getperfcounter(fl, PERF_COUNT);
+	// 137 Addition
+	struct timespec exec_t = {0};
+	int64_t exec_t_count = 0;
+
+	// 137: profile additions
+	fl->profile = 1;
+	getnstimeofday(&exec_t);
 
 	if (fl->profile)
 		getnstimeofday(&invoket);
@@ -2085,9 +2095,12 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 	if (kernel)
 		wait_for_completion(&ctx->work);
 	else {
+		// 137: TODO is this the actual NN execution time? Or do we need to measure somewhere else to?
 		interrupted = wait_for_completion_interruptible(&ctx->work);
 		VERIFY(err, 0 == (err = interrupted));
 		printk(KERN_ALERT "DEBUG: %s (interrupted wait for completion)\n",__FUNCTION__);
+		exec_t_count += getnstimediff(&exec_t);
+		printk(KERN_ALERT "TIME: %s (execution: %lld\n",__FUNCTION__,exec_t_count);
 		if (err)
 			goto bail;
 	}
@@ -3183,6 +3196,10 @@ static ssize_t fastrpc_debugfs_read(struct file *filp, char __user *buffer,
 	char single_line[UL_SIZE] = "----------------";
 	char title[UL_SIZE] = "=========================";
 
+	// 137: profile additions
+	fl->profile = 0;
+	printk(KERN_ALERT "DEBUG: %s\n",__FUNCTION__);
+
 	fileinfo = kzalloc(DEBUGFS_SIZE, GFP_KERNEL);
 	if (!fileinfo)
 		goto bail;
@@ -3627,6 +3644,13 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	int size = 0, err = 0;
 	uint32_t info;
 	char* decoded = decode_iowr(ioctl_num);
+	// 137 Addition
+	struct timespec exec_t = {0};
+	int64_t exec_t_count = 0;
+
+	// 137: profile additions
+	fl->profile = 1;
+	getnstimeofday(&exec_t);
 
 	p.inv.fds = NULL;
 	p.inv.attrs = NULL;
@@ -3641,7 +3665,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	spin_unlock(&fl->hlock);
 
 	printk(KERN_ALERT "DEBUG: %s (ioctl: %s [%u])\n",__FUNCTION__, decoded, ioctl_num);
-	printk(KERN_ALERT "DEBUG: %s (fl->profile: %u)\n",__FUNCTION__, fl->profile);
+	//printk(KERN_ALERT "DEBUG: %s (fl->profile: %u)\n",__FUNCTION__, fl->profile);
 
 	switch (ioctl_num) {
 	case FASTRPC_IOCTL_INVOKE:
@@ -3829,6 +3853,8 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 		pr_info("bad ioctl: %d\n", ioctl_num);
 		break;
 	}
+	exec_t_count += getnstimediff(&exec_t);
+	printk(KERN_ALERT "TIME: %s (ioctl: %lld\n",__FUNCTION__,exec_t_count);
  bail:
 	return err;
 }
