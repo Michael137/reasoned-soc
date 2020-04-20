@@ -53,6 +53,9 @@
 #include <soc/qcom/ramdump.h>
 #include <linux/debugfs.h>
 #include <linux/pm_qos.h>
+
+#include <linux/timekeeping.h>
+
 #define TZ_PIL_PROTECT_MEM_SUBSYS_ID 0x0C
 #define TZ_PIL_CLEAR_PROTECT_MEM_SUBSYS_ID 0x0D
 #define TZ_PIL_AUTH_QDSP6_PROC 1
@@ -2027,12 +2030,13 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 	struct timespec invoket = {0};
 	int64_t *perf_counter = getperfcounter(fl, PERF_COUNT);
 	// 137 Addition
-	struct timespec exec_t = {0};
-	int64_t exec_t_count = 0;
+	struct timespec64 start = {0,0};
+	struct timespec64 end = {0,0};
+	struct timespec64 final = {0,0};
 
 	// 137: profile additions
 	fl->profile = 1;
-	getnstimeofday(&exec_t);
+	ktime_get_ts64(&start);
 
 	if (fl->profile)
 		getnstimeofday(&invoket);
@@ -2098,9 +2102,10 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		// 137: TODO is this the actual NN execution time? Or do we need to measure somewhere else to?
 		interrupted = wait_for_completion_interruptible(&ctx->work);
 		VERIFY(err, 0 == (err = interrupted));
+		ktime_get_ts64(&end);
+		final = timespec64_sub(start, end);
 		printk(KERN_ALERT "DEBUG: %s (interrupted wait for completion)\n",__FUNCTION__);
-		exec_t_count += getnstimediff(&exec_t);
-		printk(KERN_ALERT "TIME: %s (execution: %lld\n",__FUNCTION__,exec_t_count);
+		printk(KERN_ALERT "TIME: %s (execution (s): %llu.%0.9u\n",__FUNCTION__,(u64)final.tv_sec, (u32)final.tv_nsec);
 		if (err)
 			goto bail;
 	}
@@ -3645,12 +3650,13 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	uint32_t info;
 	char* decoded = decode_iowr(ioctl_num);
 	// 137 Addition
-	struct timespec exec_t = {0};
-	int64_t exec_t_count = 0;
+	struct timespec64 start = {0,0};
+	struct timespec64 end = {0,0};
+	struct timespec64 final = {0,0};
 
 	// 137: profile additions
 	fl->profile = 1;
-	getnstimeofday(&exec_t);
+	ktime_get_ts64(&start);
 
 	p.inv.fds = NULL;
 	p.inv.attrs = NULL;
@@ -3664,7 +3670,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	}
 	spin_unlock(&fl->hlock);
 
-	printk(KERN_ALERT "DEBUG: %s (ioctl: %s [%u])\n",__FUNCTION__, decoded, ioctl_num);
+	printk(KERN_ALERT "IOCTL: %s (ioctl: %s [%u])\n",__FUNCTION__, decoded, ioctl_num);
 	//printk(KERN_ALERT "DEBUG: %s (fl->profile: %u)\n",__FUNCTION__, fl->profile);
 
 	switch (ioctl_num) {
@@ -3853,8 +3859,9 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 		pr_info("bad ioctl: %d\n", ioctl_num);
 		break;
 	}
-	exec_t_count += getnstimediff(&exec_t);
-	printk(KERN_ALERT "TIME: %s (ioctl: %lld\n",__FUNCTION__,exec_t_count);
+	ktime_get_ts64(&end);
+	final = timespec64_sub(start, end);
+	printk(KERN_ALERT "TIME: %s %s (ioctl (s): %llu.%0.9u\n",__FUNCTION__, decoded, (u64)final.tv_sec, (u32)final.tv_nsec);
  bail:
 	return err;
 }
