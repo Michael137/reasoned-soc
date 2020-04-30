@@ -1998,7 +1998,7 @@ static char* decode_iowr(unsigned int ioctl_num)
 static void fastrpc_init(struct fastrpc_apps *me)
 {
 	int i;
-	printk(KERN_ALERT "DEBUG: fastrpc_init %s %d \n",__FUNCTION__,__LINE__);
+	printk(KERN_ALERT "DEBUG: fastrpc_init %s (pid: %u) %d \n",__FUNCTION__,current->pid, __LINE__);
 	INIT_HLIST_HEAD(&me->drivers);
 	INIT_HLIST_HEAD(&me->maps);
 	spin_lock_init(&me->hlock);
@@ -2058,7 +2058,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		goto bail;
 
 	if (!kernel) {
-		printk(KERN_ALERT "DEBUG: calling context_restore_interrupted (kernel = %u) [%s %d] \n", kernel, __FUNCTION__,__LINE__);
+		printk(KERN_ALERT "DEBUG: calling context_restore_interrupted (pid: %u) (kernel = %u) [%s %d] \n", current->pid, kernel, __FUNCTION__,__LINE__);
 		VERIFY(err, 0 == context_restore_interrupted(fl, inv,
 								&ctx));
 		if (err)
@@ -2104,8 +2104,8 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		VERIFY(err, 0 == (err = interrupted));
 		ktime_get_ts64(&end);
 		final = timespec64_sub(end, start);
-		printk(KERN_ALERT "DEBUG: %s (interrupted wait for completion)\n",__FUNCTION__);
-		printk(KERN_ALERT "TIME: %s (execution (s): %llu.%0.9u\n",__FUNCTION__,(u64)final.tv_sec, (u32)final.tv_nsec);
+		printk(KERN_ALERT "DEBUG: %s (pid: %u) (interrupted wait for completion)\n",__FUNCTION__, current->pid);
+		printk(KERN_ALERT "TIME: %s (pid: %u) (execution (s): %llu.%0.9u\n",__FUNCTION__,current->pid,(u64)final.tv_sec, (u32)final.tv_nsec);
 		if (err)
 			goto bail;
 	}
@@ -2125,7 +2125,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 	if (err)
 		goto bail;
  bail:
-	printk(KERN_ALERT "DEBUG: %s (got to bail)\n",__FUNCTION__);
+	printk(KERN_ALERT "DEBUG: %s (pid: %u) (got to bail)\n",__FUNCTION__, current->pid);
 	if (ctx && interrupted == -ERESTARTSYS)
 		context_save_interrupted(ctx);
 	else if (ctx)
@@ -2193,7 +2193,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 		remote_arg_t ra[1];
 		int tgid = fl->tgid;
 
-		printk(KERN_ALERT "DEBUG: %s (attach)\n",__FUNCTION__);
+		printk(KERN_ALERT "DEBUG: %s (pid: %u) (attach)\n",__FUNCTION__, current->pid);
 		ra[0].buf.pv = (void *)&tgid;
 		ra[0].buf.len = sizeof(tgid);
 		ioctl.inv.handle = FASTRPC_STATIC_HANDLE_KERNEL;
@@ -2226,7 +2226,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 			int siglen;
 		} inbuf;
 
-		printk(KERN_ALERT "DEBUG: %s (create)\n",__FUNCTION__);
+		printk(KERN_ALERT "DEBUG: %s (pid: %u) (create)\n",__FUNCTION__, current->pid);
 		inbuf.pgid = fl->tgid;
 		inbuf.namelen = strlen(current->comm) + 1;
 		inbuf.filelen = init->filelen;
@@ -2315,7 +2315,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 			unsigned int pageslen;
 		} inbuf;
 
-		printk(KERN_ALERT "DEBUG: %s (create static)\n",__FUNCTION__);
+		printk(KERN_ALERT "DEBUG: %s (pid: %u) (create static)\n",__FUNCTION__, current->pid);
 		if (!init->filelen)
 			goto bail;
 
@@ -2776,7 +2776,7 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 
 	mutex_lock(&fl->map_mutex);
 	if (ud->flags == ADSP_MMAP_ADD_PAGES) {
-		printk(KERN_ALERT "DEBUG: %s (adding pages)\n",__FUNCTION__);
+		printk(KERN_ALERT "DEBUG: %s (pid: %u) (adding pages)\n",__FUNCTION__, current->pid);
 		if (ud->vaddrin) {
 			err = -EINVAL;
 			pr_err("adsprpc: %s: %s: ERROR: adding user allocated pages is not supported\n",
@@ -2798,7 +2798,7 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 	} else {
 		uintptr_t va_to_dsp;
 
-		printk(KERN_ALERT "DEBUG: %s (not adding pages i.e. fastrpc_mmap_create)\n",__FUNCTION__);
+		printk(KERN_ALERT "DEBUG: %s (pid: %u) (not adding pages i.e. fastrpc_mmap_create)\n",__FUNCTION__, current->pid);
 		mutex_lock(&fl->fl_map_mutex);
 		if (!fastrpc_mmap_find(fl, ud->fd, (uintptr_t)ud->vaddrin,
 				 ud->size, ud->flags, 1, &map)) {
@@ -3608,7 +3608,7 @@ static int fastrpc_internal_control(struct fastrpc_file *fl,
 		latency = cp->lp.enable == FASTRPC_LATENCY_CTRL_ENB ?
 			fl->apps->latency : PM_QOS_DEFAULT_VALUE;
 		VERIFY(err, latency != 0);
-		printk(KERN_ALERT "DEBUG: %s (set latency to %d because cp->lp.enable == %d (default PM_QOS is: %d)\n",__FUNCTION__, latency, cp->lp.enable, PM_QOS_DEFAULT_VALUE);
+		printk(KERN_ALERT "DEBUG: %s (pid: %u) (set latency to %d because cp->lp.enable == %d (default PM_QOS is: %d)\n",__FUNCTION__, current->pid, latency, cp->lp.enable, PM_QOS_DEFAULT_VALUE);
 		if (err)
 			goto bail;
 		if (!fl->qos_request) {
@@ -3670,7 +3670,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	}
 	spin_unlock(&fl->hlock);
 
-	printk(KERN_ALERT "IOCTL: %s (ioctl: %s [%u])\n",__FUNCTION__, decoded, ioctl_num);
+	printk(KERN_ALERT "IOCTL: %s (pid: %u) (ioctl: %s [%u] )\n",__FUNCTION__, current->pid, decoded, ioctl_num);
 	//printk(KERN_ALERT "DEBUG: %s (fl->profile: %u)\n",__FUNCTION__, fl->profile);
 
 	switch (ioctl_num) {
@@ -3861,7 +3861,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	}
 	ktime_get_ts64(&end);
 	final = timespec64_sub(end, start);
-	printk(KERN_ALERT "TIME: %s %s (ioctl (s): %llu.%0.9u\n",__FUNCTION__, decoded, (u64)final.tv_sec, (u32)final.tv_nsec);
+	printk(KERN_ALERT "TIME: %s (pid: %u) %s (ioctl (s): %llu.%0.9u\n",__FUNCTION__, current->pid, decoded, (u64)final.tv_sec, (u32)final.tv_nsec);
  bail:
 	return err;
 }
