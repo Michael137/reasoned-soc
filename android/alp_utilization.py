@@ -31,5 +31,3 @@ accelerators = [
     "crypto",
     "others"
 ]
-
-

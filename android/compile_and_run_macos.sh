@@ -14,4 +14,7 @@ $LLVM_TOOLCHAIN/bin/aarch64-linux-android21-clang --target=aarch64-none-linux-an
 												  --sysroot=$LLVM_TOOLCHAIN/sysroot $FILE -o $OUT_FILE
 
 adb push $OUT_FILE $INSTALL_DIR
+
+echo "Pushed to ${INSTALL_DIR}/${OUT_FILE}"
+
 adb shell "${INSTALL_DIR}/${OUT_FILE}"

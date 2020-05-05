@@ -5,7 +5,9 @@
 	+ private/msm-google-modules/wlan/qcacld-3.0
 - [Related to the KGSL GPU Driver](https://android.googlesource.com/kernel/msm/+/android-msm-sony-cm-jb-3.0/Documentation/arm/msm/kgsl-sysfs.txt)
 	+ drivers/gpu/msm/kgsl.c
-	+ IOCTLS defined in: drivers/gpu/msm/kgsl_iotctl.c
+	+ drivers/gpu/msm/adreno.c
+	+ IOCTLS defined in: drivers/gpu/msm/kgsl_ioctl.c
+	+ IOCTLS defined in: drivers/gpu/msm/adreno_ioctl.c
 - [Qualcomm Face Detection](https://android.googlesource.com/kernel/msm.git/+/android-msm-bullhead-3.10-n-preview-1/Documentation/devicetree/bindings/media/video/msm-fd.txt)
 	+ drivers/media/platform/msm/camera_v2/fd/msm_fd_hw.c
 - [Qualcomm Video Camera Driver](https://android.googlesource.com/kernel/msm/+/android-7.1.0_r0.2/Documentation/devicetree/bindings/media/video/msm-cpp.txt)
