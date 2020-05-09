@@ -122,7 +122,8 @@ endif
   - `grep <your added feature> .config` should show your features added
   - make ARCH=arm64 savedefconfig
   - `grep <your added feature> defconfig` should still show the additions you are interested in
-7. Run `build/build.sh` from the root of the overall msm build repo (not necessarily the kernel source)
+7. OPTIONAL: If you want to build the `msm-google-modules` modules (e.g., the wlan drivers) then you add `EXT_MODULES=private/msm-google-modules` to your `build.config`
+8. Run `build/build.sh -j30` from the root of the overall msm build repo (not necessarily the kernel source)
 
 ## Troubleshooting
 - sha256sum not found: brew install coreutils
