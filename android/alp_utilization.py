@@ -19,12 +19,14 @@ TODO:
 '''
 
 import subprocess as sp
+
 import sys
 
 # For type annotations
-from typing import List
+from typing import List, Dict
 
-accelerators = [
+DEBUG = False
+ACCELERATORS = [
     # Qualcomm GPU (KGSL driver)
     "ardeno",
     
@@ -45,14 +47,45 @@ accelerators = [
     "others"
 ]
 
+def printe(exit = True, *args, **kwargs):
+    print(*args, file=sys.stderr, **kwargs)
+    if exit:
+        sys.exit()
+
+def printw(*args, **kwargs):
+    printe(False, *args, **kwargs)
+
+def printd(*args, **kwargs):
+    if DEBUG:
+        printw(*args, **kwargs)
+
 # Collect kernel log
 def log_dmesg() -> str:
     cmd = ["dmesg", "-T"]
     output = run_via_adb(cmd)
     return output
 
-def process_dmesg(log: str) -> List[str]:
+def process_dmesg(log: str) -> Dict[str, List[float]]:
     lines = log.split('\n')
+
+    probes = ["DEBUG","IOCTL","TIME"]
+    results = {}
+    for line in lines:
+        probe = [x for x in probes if x in line]
+        if len(probe) == 0:
+            continue
+        elif len(probe) > 1:
+            printe("More than a single probe available for log line.\n{}\n{}".format(line,probe))
+        else:
+            probe = probe[0]
+
+        if probe in line:
+            if probe not in results:
+                # TODO: should be dict where key is timestamp
+                results[probe] = []
+            results[probe].append(line)
+
+    return results
 
 # Collect Android log
 def log_logcat() -> str:
@@ -82,38 +115,35 @@ def check_reqs():
         except sp.CalledProcessError as e:
             not_found.append(b)
     if len(not_found) > 0:
-        print("ERROR: following required binaries not found: ")
-        print(not_found)
-        sys.exit()
+        printe("ERROR: following required binaries not found:\n", not_found)
 
     # Is device connected?
     # NOTE: command will always return a header line followed by
     #       one line for each connected device
     devices = check_output("adb devices").split('\n')
     if len(devices) == 1:
-        print("ERROR: no devices connected")
-        sys.exit()
+        printe("ERROR: no devices connected")
     elif len(devices) > 2:
-        print("ERROR: this script expects only a single connected Android device")
-        sys.exit()
+        printe("ERROR: this script expects only a single connected Android device")
 
     # Is adb connected as root?
     whoami = run_via_adb(["whoami"])
     if whoami != "root":
-        print("WARNING: script requires adb in root...restarting as root")
+        printw("WARNING: script requires adb in root...restarting as root")
         sp.run(["adb", "root"])
         # TODO: check if root restart has been succesful
 
     # TODO: Check if adb has write permissions
 
-def calc_utilization(processed_log: List[str]) -> List[float]:
-    #raise NotImplementedError
-    print(processed_log)
+def calc_utilization(processed_log: Dict[str,List[str]]) -> List[float]:
+    printd(processed_log)
     return []
 
 # Compute ALP stats
 def alp():
-    calc_utilization(process_dmesg(log_dmesg))
+    calc_utilization(process_dmesg(log_dmesg()))
+    return
 
-check_reqs()
-
+if __name__ == "__main__":
+    check_reqs()
+    alp()
