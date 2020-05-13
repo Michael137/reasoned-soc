@@ -6,18 +6,12 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
-struct fastrpc_ioctl_perf {
-	/* kernel performance data */
-	uintptr_t data;
-	uint32_t numkeys;
-	uintptr_t keys;
-};
-
-#define FASTRPC_IOCTL_GETPERF _IOWR('R', 9, struct fastrpc_ioctl_perf)
+#include "driver_prof_shared.h"
 
 int main(void) {
 	int fd;
 	struct fastrpc_ioctl_perf data;
+	struct fastrpc_file fl;
 
 	fd = open("/dev/adsprpc-smd", O_RDWR);
 
@@ -27,6 +21,12 @@ int main(void) {
 	}
 
 	memset(&data, 0, sizeof(struct fastrpc_ioctl_perf));
+
+	// Enable profiling in ADSP driver
+	memset(&fl, 0, sizeof(struct fastrpc_file));
+	fl.profile = 1;
+
+	fd.private_data = &fl;
 
 	ioctl(fd, FASTRPC_IOCTL_GETPERF, &data);
 	printf("keys: %lu\n"

@@ -1,0 +1,64 @@
+#ifndef DRIVER_PROF_SHARED_H_IN
+#define DRIVER_PROF_SHARED_H_IN
+
+#include <linux/spinlock.h>
+
+struct fastrpc_ioctl_perf
+{
+	/* kernel performance data */
+	uintptr_t data;
+	uint32_t numkeys;
+	uintptr_t keys;
+};
+
+struct fastrpc_file
+{
+	struct hlist_node hn;
+	spinlock_t hlock;
+	struct hlist_head maps;
+	struct hlist_head cached_bufs;
+	struct hlist_head remote_bufs;
+	struct fastrpc_ctx_lst clst;
+	struct fastrpc_session_ctx* sctx;
+	struct fastrpc_buf* init_mem;
+	struct fastrpc_session_ctx* secsctx;
+	uint32_t mode;
+	uint32_t profile;
+	int sessionid;
+	int tgid;
+	int cid;
+	int ssrcount;
+	int pd;
+	char* spdname;
+	int file_close;
+	int sharedcb;
+	struct fastrpc_apps* apps;
+	struct hlist_head perf;
+	struct dentry* debugfs_file;
+	struct mutex perf_mutex;
+	struct pm_qos_request pm_qos_req;
+	int qos_request;
+	struct mutex map_mutex;
+	struct mutex fl_map_mutex;
+	int refcount;
+	/* Identifies the device (MINOR_NUM_DEV / MINOR_NUM_SECURE_DEV) */
+	int dev_minor;
+	char* debug_buf;
+};
+
+#define FASTRPC_IOCTL_GETPERF _IOWR( 'R', 9, struct fastrpc_ioctl_perf )
+
+struct kgsl_perfcounter_query
+{
+	unsigned int groupid;
+	unsigned int* countables;
+	unsigned int count;
+	unsigned int max_counters;
+	unsigned int __pad[2];
+};
+
+#define KGSL_IOC_TYPE 0x09
+#define IOCTL_KGSL_PERFCOUNTER_QUERY                                           \
+	_IOWR( KGSL_IOC_TYPE, 0x3A, struct kgsl_perfcounter_query )
+
+#endif // DRIVER_PROF_SHARED_H_IN

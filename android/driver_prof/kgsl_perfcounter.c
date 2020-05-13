@@ -6,16 +6,7 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 
-struct kgsl_perfcounter_query {
-	unsigned int groupid;
-	unsigned int *countables;
-	unsigned int count;
-	unsigned int max_counters;
-	unsigned int __pad[2];
-};
-
-#define KGSL_IOC_TYPE 0x09
-#define IOCTL_KGSL_PERFCOUNTER_QUERY _IOWR(KGSL_IOC_TYPE, 0x3A, struct kgsl_perfcounter_query)
+#include "driver_prof_shared.h"
 
 int main(void) {
 	int fd;
