@@ -1,0 +1,11 @@
+comment "Qualcomm driver instrumentation module"
+
+config DRV_PERF
+
+	tristate "Qualcomm driver instrumentation module"
+	default y
+	help
+	Add support for the Qualcomm driver instrumentation module
+
+if DRV_PERF != n
+endif # DRV_PERF

@@ -16,6 +16,20 @@ TODO:
     - Log processing
     - Build perf library if necessary and possible
     - Pyton C bindings to call perf measurments
+
+Probe Types:
+    - Perf counters
+    - Log w/ timestamp
+        - Format:
+            { <accelerator>:
+                { <tag>:
+                    <timestamp>: [ msg1, ..., msgN ]
+                  ... },
+                ...
+            }
+        - <tag> is one of:
+            * ALP_DEBUG: Informational message
+            * ALP_TIME: Timing message
 '''
 
 import subprocess as sp
@@ -25,7 +39,7 @@ import sys
 # For type annotations
 from typing import List, Dict
 
-DEBUG = False
+DEBUG = True
 ACCELERATORS = [
     # Qualcomm GPU (KGSL driver)
     "ardeno",
