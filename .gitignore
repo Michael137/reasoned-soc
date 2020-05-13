@@ -1,2 +1,5 @@
 *.html
 *.out
+.DS_Store
+*.apk
+*.gz
