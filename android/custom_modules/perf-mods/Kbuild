@@ -63,14 +63,14 @@ CONFIG_LITTLE_ENDIAN := 1
 # CONFIG_FEATURE_SECURE_FIRMWARE := 0
 
 ############ DSP ############
-DSP_DIR :=	core/dsp
+DSP_DIR :=	core/drv_perf_dsp
 DSP_INC_DIR :=	$(DSP_DIR)/inc
 DSP_SRC_DIR :=	$(DSP_DIR)/src
 
 DSP_INC := 	-I$(DRV_PERF_ROOT)/$(DSP_INC_DIR) \
 		-I$(DRV_PERF_ROOT)/$(DSP_SRC_DIR)
 
-DSP_OBJS := $(DSP_SRC_DIR)/drv_perf_main.o
+DSP_OBJS := $(DSP_SRC_DIR)/drv_perf_dsp_main.o
 
 # ifeq ($(CONFIG_WLAN_DEBUGFS), y)
 #   HDD_OBJS += $(HDD_SRC_DIR)/wlan_hdd_debugfs.o

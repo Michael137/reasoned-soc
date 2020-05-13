@@ -7,6 +7,6 @@
 #include <linux/init.h>
 #include <linux/wireless.h>
 #include <linux/if_arp.h>
-#include "wlan_hdd_main.h"
+#include "drv_perf_dsp_main.h"
 
 #endif /* end #if !defined(DRV_PERF_INCLUDES_H__) */

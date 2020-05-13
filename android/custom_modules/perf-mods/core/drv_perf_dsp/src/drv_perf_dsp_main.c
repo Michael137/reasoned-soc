@@ -1,5 +1,5 @@
 /* Include Files */
-#include <wlan_hdd_includes.h>
+#include <drv_perf_dsp_includes.h>
 
 #ifdef MSM_PLATFORM
 #include <soc/qcom/subsystem_restart.h>
