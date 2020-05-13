@@ -158,6 +158,11 @@ def alp():
     calc_utilization(process_dmesg(log_dmesg()))
     return
 
+# Get utilization numbers via perf probe of driver with
+# name "drv_name"
+def perf(drv_name: str)
+    raise NotImplementedError
+
 if __name__ == "__main__":
     check_reqs()
     alp()
