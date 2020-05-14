@@ -32,9 +32,12 @@ Probe Types:
             * ALP_TIME: Timing message
 '''
 
-import subprocess as sp
-
 import sys
+import subprocess as sp
+from dateutil.parser import *
+from datetime import *
+# Regular Expressions
+import re
 
 # For type annotations
 from typing import List, Dict
@@ -79,10 +82,9 @@ def log_dmesg() -> str:
     output = run_via_adb(cmd)
     return output
 
-def process_dmesg(log: str) -> Dict[str, List[float]]:
+def process_dmesg(log: str, probes: List[str] = ["DEBUG","IOCTL","TIME"]) -> Dict[str, List[float]]:
     lines = log.split('\n')
 
-    probes = ["DEBUG","IOCTL","TIME"]
     results = {}
     for line in lines:
         probe = [x for x in probes if x in line]
@@ -160,9 +162,40 @@ def alp():
 
 # Get utilization numbers via perf probe of driver with
 # name "drv_name"
-def perf(drv_name: str)
+def perf(drv_name: str):
     raise NotImplementedError
+
+# TODO: function return annotation
+def extract_time(s: str):
+    # Match timestamp s.a. "[Wed May 13 23:23:08 2020] ..."
+    matched = re.search(r'\[(.*?)\]', s, re.M | re.I)
+    # Extract timestamp
+    ts = parse(matched.group(1))
+    return ts
+
+def calc_log_time(processed_log: Dict[str,List[str]]) -> float:
+    threshold = 10 # seconds
+    exec_times = []
+    ioctl_times = []
+    times = processed_log["TIME"]
+    most_recent = extract_time(times[-1])
+    elig_times = [t for t in times if extract_time(t) > (most_recent - timedelta(seconds=threshold))]
+
+    for e in elig_times:
+        printd(e)
+        if '(execution' in e:
+            exec_times.append(float(e.split(' ')[-1]))
+        elif '(ioctl' in e:
+            ioctl_times.append(float(e.split(' ')[-1]))
+
+    exec_tot = sum(exec_times)
+    ioctl_tot = sum(ioctl_times) - exec_tot
+    printd(exec_tot)
+    printd(ioctl_tot)
+
+    return 0
 
 if __name__ == "__main__":
     check_reqs()
-    alp()
+    # alp()
+    calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]))
