@@ -34,13 +34,18 @@ Probe Types:
 
 import sys
 import subprocess as sp
-from dateutil.parser import *
+import time as t
 from datetime import *
+from dateutil.parser import *
 # Regular Expressions
 import re
+from random import seed
+import random
 
 # For type annotations
 from typing import List, Dict
+
+# from ascii_plot import *
 
 DEBUG = True
 ACCELERATORS = [
@@ -173,29 +178,94 @@ def extract_time(s: str):
     ts = parse(matched.group(1))
     return ts
 
-def calc_log_time(processed_log: Dict[str,List[str]]) -> float:
-    threshold = 10 # seconds
+# TODO: function return annotation
+def extract_pid(s: str):
+    # Match pid tag s.a. "... (pid: 1234) ..."
+    matched = re.search(r'\(pid:(.*?)\)', s, re.M | re.I)
+    # Extract pid
+    pid = matched.group(1)
+    return pid
+
+# threshold is in seconds
+def calc_log_time(processed_log: Dict[str,List[str]],
+                  threshold = 20 ) -> float:
     exec_times = []
     ioctl_times = []
     times = processed_log["TIME"]
     most_recent = extract_time(times[-1])
     elig_times = [t for t in times if extract_time(t) > (most_recent - timedelta(seconds=threshold))]
 
+    pids = {}
     for e in elig_times:
         printd(e)
+        pid = extract_pid(e)
         if '(execution' in e:
-            exec_times.append(float(e.split(' ')[-1]))
+            if pid not in pids:
+                pids[pid] = {'ioctl':[], 'exec':[]}
+
+            time = float(e.split(' ')[-1])
+            pids[pid]['exec'].append(time)
+            exec_times.append(time)
         elif '(ioctl' in e:
-            ioctl_times.append(float(e.split(' ')[-1]))
+            if pid not in pids:
+                pids[pid] = {'ioctl':[], 'exec':[]}
+
+            time = float(e.split(' ')[-1])
+            pids[pid]['ioctl'].append(time)
+            ioctl_times.append(time)
+
+    # Ignore largest two execution measurement since it
+    # is *always* an artifact of previous run
+    # TODO: confirm above assumption
+    exec_times.remove(max(exec_times))
+    #exec_times.remove(max(exec_times))
+    ioctl_times.remove(max(ioctl_times))
+    #ioctl_times.remove(max(ioctl_times))
 
     exec_tot = sum(exec_times)
-    ioctl_tot = sum(ioctl_times) - exec_tot
-    printd(exec_tot)
-    printd(ioctl_tot)
+    ioctl_tot = sum(ioctl_times)
+
+    for pid, v in pids.items():
+        printd(pid, ',', sum(v['exec']), ',', sum(v['ioctl']))
+
+    printd("len(exec_times): ", len(exec_times))
+    printd("len(ioctl_times): ", len(ioctl_times))
+    printd("Total execution time (s): ", exec_tot)
+    printd("Total ioctl time (s): ", ioctl_tot)
 
     return 0
 
+def calc_flash_count(processed_log: Dict[str,List[str]],
+                     threshold = 20 ) -> float:
+    times = processed_log["DEBUG"]
+    most_recent = extract_time(times[-1])
+    elig_times = [t for t in times if extract_time(t) > (most_recent - timedelta(seconds=threshold))]
+
+    flush_count = 0
+    inv_count = 0
+    for e in elig_times:
+        if 'flushing cache' in e:
+            flush_count += 1
+        if 'invalidate cache' in e:
+            inv_count += 1
+
+    printd("# of flushes: ", flush_count)
+    printd("# of invalidations: ", inv_count)
+
+    return 0
+
+# TODO: see https://stackoverflow.com/questions/9854511/python-curses-dilemma
+def utilization_stream():
+    data = {"GPU": 20, "DSP": 40, "ICE": 1, "Others": 39}
+    for k,v in data.items():
+        data[k] = v + random.randint(0, 10)
+    return data
+
 if __name__ == "__main__":
+    thr = 20
+    seed(1)
     check_reqs()
     # alp()
-    calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]))
+    calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = thr)
+    # barchart_loop(utilization_stream)
+    calc_flash_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = thr)
