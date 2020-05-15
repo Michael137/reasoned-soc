@@ -41,6 +41,7 @@ from dateutil.parser import *
 import re
 from random import seed
 import random
+from pathlib import Path
 
 # For type annotations
 from typing import List, Dict
@@ -69,17 +70,17 @@ ACCELERATORS = [
     "others"
 ]
 
-def printe(exit = True, *args, **kwargs):
+def printe(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
     if exit:
         sys.exit()
 
 def printw(*args, **kwargs):
-    printe(False, *args, **kwargs)
+    print(*args, file=sys.stderr, **kwargs)
 
 def printd(*args, **kwargs):
     if DEBUG:
-        printw(*args, **kwargs)
+        print(*args, file=sys.stderr, **kwargs)
 
 # Collect kernel log
 def log_dmesg() -> str:
@@ -114,18 +115,21 @@ def log_logcat() -> str:
     output = run_via_adb(cmd)
     return output
 
-def check_output(cmd: str) -> str:
+def check_output(cmd: List[str]) -> str:
     try:
         # subprocess.check_output returns bytes so decode it to UTF-8 string
-        return sp.check_output(cmd, stderr=sp.STDOUT, shell=True).decode("utf-8").strip()
+        return sp.check_output(cmd, stderr=sp.STDOUT).decode("utf-8").strip()
     except sp.CalledProcessError as e:
         raise RuntimeError("command '{}' return with error (code {}): {}".format(e.cmd, e.returncode, e.output))
 
 # Execute commands through adb
 def run_via_adb(user_cmd: List[str]) -> str:
     adb_cmd_prefix = ["adb", "shell"]
-    cmd = ' '.join(adb_cmd_prefix + user_cmd)
+    cmd = adb_cmd_prefix + user_cmd
     return check_output(cmd)
+
+def check_adb_root() -> bool:
+    return run_via_adb(["whoami"]) == "root"
 
 def check_reqs():
     required_bins = ["adb"]
@@ -141,18 +145,18 @@ def check_reqs():
     # Is device connected?
     # NOTE: command will always return a header line followed by
     #       one line for each connected device
-    devices = check_output("adb devices").split('\n')
+    devices = check_output(['adb', 'devices']).split('\n')
     if len(devices) == 1:
         printe("ERROR: no devices connected")
     elif len(devices) > 2:
         printe("ERROR: this script expects only a single connected Android device")
 
     # Is adb connected as root?
-    whoami = run_via_adb(["whoami"])
-    if whoami != "root":
+    if not check_adb_root():
         printw("WARNING: script requires adb in root...restarting as root")
         sp.run(["adb", "root"])
-        # TODO: check if root restart has been succesful
+        if not check_adb_root():
+            printe("ERROR: failed to restart adb in root")
 
     # TODO: Check if adb has write permissions
 
@@ -193,6 +197,7 @@ def calc_log_time(processed_log: Dict[str,List[str]],
     ioctl_times = []
     times = processed_log["TIME"]
     most_recent = extract_time(times[-1])
+    # TODO: is "getinfo" call time a better heuristic than threshold?
     elig_times = [t for t in times if extract_time(t) > (most_recent - timedelta(seconds=threshold))]
 
     pids = {}
@@ -261,11 +266,47 @@ def utilization_stream():
         data[k] = v + random.randint(0, 10)
     return data
 
+######### Running tflite benchmarks ##############
+# Config should be a list of models with absolute paths
+def parse_model_cfg(cfg_path: str = str(Path.cwd() / 'models.cfg')) -> List[str]:
+    models = []
+    with open(cfg_path) as cfg_f:
+        for line in cfg_f:
+            models.append(line.strip())
+            # TODO: assert that path exists
+
+    assert(len(models) > 0)
+    return models
+
+# TODO: make configurable
+def run_tflite_bench_random(model_pool_path: List[str], num_proc = 4):
+    assert(num_proc > 0)
+    base_cmd = ['/data/local/tmp/benchmark_model',  \
+                '--num_threads=1',                  \
+                '--use_hexagon=true',               \
+                '--warmup_runs=1,'                  \
+                '--num_runs=1',                     \
+                '--hexagon_profiling=false',        \
+                '--enable_op_profiling=false']
+
+    models = [random.choice(model_pool_path) for _ in range(num_proc)]
+    cmd = list.copy(base_cmd)
+    for idx, model in enumerate(models):
+        cmd += ['--graph=' + str(model)]
+        if idx < len(models) - 1:
+            cmd.append('&')
+            cmd += base_cmd
+
+    printd('Running benchmark using: ', cmd)
+    run_via_adb(cmd)
+    #for e in cmd:
+    #    printd(e)
+
 if __name__ == "__main__":
-    thr = 20
-    seed(1)
+    thr = 5
+    random.seed(datetime.now())
+
     check_reqs()
-    # alp()
+    run_tflite_bench_random(parse_model_cfg(), num_proc = 1)
     calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = thr)
-    # barchart_loop(utilization_stream)
     calc_flash_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = thr)
