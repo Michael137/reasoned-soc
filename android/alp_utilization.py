@@ -1,5 +1,4 @@
-#!/usr/local/bin/python3
-
+#!/usr/local/bin/python3 
 '''
 >> Htop for accelerators <<
 
@@ -37,6 +36,7 @@ import subprocess as sp
 import time as t
 from datetime import *
 from dateutil.parser import *
+from timeit import default_timer as timer
 # Regular Expressions
 import re
 from random import seed
@@ -192,12 +192,11 @@ def extract_pid(s: str):
 
 # threshold is in seconds
 def calc_log_time(processed_log: Dict[str,List[str]],
-                  threshold = 20 ) -> float:
+                  threshold = 5 ) -> float:
     exec_times = []
     ioctl_times = []
     times = processed_log["TIME"]
     most_recent = extract_time(times[-1])
-    # TODO: is "getinfo" call time a better heuristic than threshold?
     elig_times = [t for t in times if extract_time(t) > (most_recent - timedelta(seconds=threshold))]
 
     pids = {}
@@ -279,8 +278,9 @@ def parse_model_cfg(cfg_path: str = str(Path.cwd() / 'models.cfg')) -> List[str]
     return models
 
 # TODO: make configurable
-def run_tflite_bench_random(model_pool_path: List[str], num_proc = 4):
+def run_tflite_bench_random(model_pool_path: List[str], num_proc = 4) -> Dict[str, float]:
     assert(num_proc > 0)
+    info_dict = {}
     base_cmd = ['/data/local/tmp/benchmark_model',  \
                 '--num_threads=1',                  \
                 '--use_hexagon=true',               \
@@ -292,21 +292,26 @@ def run_tflite_bench_random(model_pool_path: List[str], num_proc = 4):
     models = [random.choice(model_pool_path) for _ in range(num_proc)]
     cmd = list.copy(base_cmd)
     for idx, model in enumerate(models):
-        cmd += ['--graph=' + str(model)]
+        cmd += ['--graph=' + str(model), '&']
         if idx < len(models) - 1:
-            cmd.append('&')
             cmd += base_cmd
 
+    # Wait for all subprocesses to finish
+    # TODO: make following work: cmd += [';', 'wait', '<', '<(jobs -p)']
+    cmd += ['wait']
+
     printd('Running benchmark using: ', cmd)
+    start_t = timer()
     run_via_adb(cmd)
-    #for e in cmd:
-    #    printd(e)
+    end_t = timer()
+
+    info_dict['TIME'] = end_t - start_t
+    return info_dict
 
 if __name__ == "__main__":
-    thr = 5
     random.seed(datetime.now())
 
     check_reqs()
-    run_tflite_bench_random(parse_model_cfg(), num_proc = 1)
-    calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = thr)
-    calc_flash_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = thr)
+    elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 2)["TIME"])
+    calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
+    calc_flash_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed)
