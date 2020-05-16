@@ -46,28 +46,30 @@ from pathlib import Path
 # For type annotations
 from typing import List, Dict
 
-# from ascii_plot import *
+from terminal_plot import *
+
+import curses
 
 DEBUG = True
 ACCELERATORS = [
     # Qualcomm GPU (KGSL driver)
-    "ardeno",
+    "Ardeno",
     
     # JPEG HW, PPROC, VFE, etc.
-    "camera sensors",
+    "Camera Sensors",
 
     # VIDC
-    "video codec",
+    "Video Codec",
 
     # Qualcomm IP Accelerator
     "IPA",
 
     # Qualcomm aDSP
-    "adsp",
+    "aDSP",
 
     # Qualcomm ICE
-    "crypto",
-    "others"
+    "ICE",
+    "Others"
 ]
 
 def printe(*args, **kwargs):
@@ -161,13 +163,12 @@ def check_reqs():
     # TODO: Check if adb has write permissions
 
 def calc_utilization(processed_log: Dict[str,List[str]]) -> List[float]:
-    printd(processed_log)
-    return []
+    return [ACCELERATORS, [0] * len(ACCELERATORS)]
 
 # Compute ALP stats
 def alp():
-    calc_utilization(process_dmesg(log_dmesg()))
-    return
+    # calc_utilization(process_dmesg(log_dmesg()))
+    return [ACCELERATORS, [0] * len(ACCELERATORS)]
 
 # Get utilization numbers via perf probe of driver with
 # name "drv_name"
@@ -258,13 +259,6 @@ def calc_flush_count(processed_log: Dict[str,List[str]],
 
     return 0
 
-# TODO: see https://stackoverflow.com/questions/9854511/python-curses-dilemma
-def utilization_stream():
-    data = {"GPU": 20, "DSP": 40, "ICE": 1, "Others": 39}
-    for k,v in data.items():
-        data[k] = v + random.randint(0, 10)
-    return data
-
 ######### Running tflite benchmarks ##############
 # Config should be a list of models with absolute paths
 def parse_model_cfg(cfg_path: str = str(Path.cwd() / 'models.cfg')) -> List[str]:
@@ -311,7 +305,13 @@ def run_tflite_bench_random(model_pool_path: List[str], num_proc = 4) -> Dict[st
 if __name__ == "__main__":
     random.seed(datetime.now())
 
-    check_reqs()
-    elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 2)["TIME"])
-    calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
-    calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed)
+    # check_reqs()
+    # elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 2)["TIME"])
+    # calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
+    # calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed)
+
+    try:
+        curses.initscr()
+        live_barchart(alp)
+    finally:
+        curses.endwin()
