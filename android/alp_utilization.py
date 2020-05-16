@@ -239,7 +239,7 @@ def calc_log_time(processed_log: Dict[str,List[str]],
 
     return 0
 
-def calc_flash_count(processed_log: Dict[str,List[str]],
+def calc_flush_count(processed_log: Dict[str,List[str]],
                      threshold = 20 ) -> float:
     times = processed_log["DEBUG"]
     most_recent = extract_time(times[-1])
@@ -314,4 +314,4 @@ if __name__ == "__main__":
     check_reqs()
     elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 2)["TIME"])
     calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
-    calc_flash_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed)
+    calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed)
