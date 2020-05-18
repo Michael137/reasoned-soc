@@ -1,4 +1,4 @@
-#!/usr/local/bin/python3 
+#!/usr/bin/python3 
 '''
 >> Htop for accelerators <<
 
@@ -135,10 +135,15 @@ def check_reqs():
     # NOTE: command will always return a header line followed by
     #       one line for each connected device
     devices = check_output(['adb', 'devices']).split('\n')
+    devices = [x for x in devices if not x.isspace()]
     if len(devices) == 1:
         printe("ERROR: no devices connected")
     elif len(devices) > 2:
         printe("ERROR: this script expects only a single connected Android device")
+
+    [device_name, adb_status] = devices[1].split()
+    if adb_status == 'unauthorized':
+        printe("ERROR: permission denied...please allow adb access on your device")
 
     # Is adb connected as root?
     if not check_adb_root():
