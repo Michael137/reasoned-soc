@@ -374,7 +374,7 @@ if __name__ == "__main__":
         finally:
             curses.endwin()
     elif args['memory']:
-        elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 1)["TIME"])
+        elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = args['procs'])["TIME"])
         #calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
         print(calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed))
     elif args['benchmark']:
