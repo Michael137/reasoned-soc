@@ -53,6 +53,7 @@ from terminal_plot import *
 from plots import *
 
 DEBUG = False
+VERBOSE = False
 
 def printe(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -65,6 +66,10 @@ def printw(*args, **kwargs):
 def printd(*args, **kwargs):
     if DEBUG:
         print(*args, file=sys.stderr, **kwargs)
+
+def printv(*args, **kwargs):
+    if VERBOSE:
+        print(*args, **kwargs)
 
 # Collect kernel log
 def log_dmesg() -> str:
@@ -215,7 +220,7 @@ def calc_log_time(processed_log: Dict[str,List[str]],
     return 0
 
 def calc_flush_count(processed_log: Dict[str,List[str]],
-                     threshold = 20 ) -> float:
+                     threshold = 20 ) -> Dict[str,int]:
     times = processed_log["DEBUG"]
     most_recent = extract_time(times[-1])
     elig_times = [t for t in times if extract_time(t) > (most_recent - timedelta(seconds=threshold))]
@@ -231,7 +236,7 @@ def calc_flush_count(processed_log: Dict[str,List[str]],
     printd("# of flushes: ", flush_count)
     printd("# of invalidations: ", inv_count)
 
-    return 0
+    return { 'flush': flush_count, 'invalidate': inv_count }
 
 # TODO: validate numbers?
 # TODO: what is the the Adreno driver for? kgsl vs adreno?
@@ -323,7 +328,7 @@ def run_tflite_bench_random(model_path_pool: List[str], num_proc = 4) -> Dict[st
     # TODO: make following work: cmd += [';', 'wait', '<', '<(jobs -p)']
     cmd += ['wait']
 
-    printd('Running benchmark using: ', cmd)
+    printv('Running benchmark using: ', cmd)
     start_t = timer()
     run_via_adb(cmd)
     end_t = timer()
@@ -336,8 +341,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Answers all your questions about OS-Accelerator interactions')
     parser.add_argument('--debug', default=False, action='store_true', help='enable DEBUG mode; printd(...) will print to stderr')
     parser.add_argument('--gui', default=False, action='store_true', help='show htop-style GUI for accelerator utilization')
+    parser.add_argument('--memory', default=False, action='store_true', help='Measure cache statistics for accelerators')
+    parser.add_argument('--benchmark', default=False, action='store_true', help='run tflite benchmark')
+    parser.add_argument('--verbose', default=False, action='store_true', help='verbose outputs')
     args = vars(parser.parse_args())
     DEBUG = args['debug']
+    VERBOSE = args['verbose']
 
     random.seed(datetime.now())
 
@@ -353,10 +362,12 @@ if __name__ == "__main__":
             live_barchart(barchart_data_streamer)
         finally:
             curses.endwin()
-    else:
+    elif args['memory']:
         elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 1)["TIME"])
         #calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
-        calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed)
+        print(calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed))
+    elif args['benchmark']:
+        elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 1)["TIME"])
         log = process_dmesg(log_dmesg(), probes = ["IOCTL"])["IOCTL"]
         printd(log)
         printd("interaction counts: ", calc_accelerator_interaction_count(
