@@ -225,10 +225,15 @@ def calc_log_time(processed_log: Dict[str,List[str]],
     return 0
 
 def calc_flush_count(processed_log: Dict[str,List[str]],
-                     threshold = 20 ) -> Dict[str,int]:
+                     threshold = 20,
+                     check_full_log = False) -> Dict[str,int]:
     times = processed_log["DEBUG"]
-    most_recent = extract_time(times[-1])
-    elig_times = [t for t in times if extract_time(t) > (most_recent - timedelta(seconds=threshold))]
+
+    if check_full_log:
+        elig_times = times
+    else:
+        most_recent = extract_time(times[-1])
+        elig_times = [t for t in times if extract_time(t) > (most_recent - timedelta(seconds=threshold))]
 
     flush_count = 0
     inv_count = 0
@@ -272,9 +277,6 @@ def calc_accelerator_interaction_count(processed_log: Dict[str, List[str]], thre
     return accelerators
 
 ######### Utilization Related ##############
-def alp():
-    return [ACCELERATORS, [0] * len(ACCELERATORS)]
-
 # TODO: turn into generator
 # TODO: test
 class StreamDataNaive():
@@ -312,7 +314,7 @@ def parse_model_cfg(cfg_path: str = str(Path.cwd() / 'models.cfg')) -> List[str]
 
 DEFAULT_TFLITE_BENCH_OPTS = { 'num_threads'          : 1,           
                               'use_hexagon'          : 'true',      
-                              'warmup_runs'          : 1,           
+                              'warmup_runs'          : 0,           
                               'num_runs'             : 1,           
                               'hexagon_profiling'    : 'false',     
                               'enable_op_profiling'  : 'false' }
@@ -376,7 +378,7 @@ if __name__ == "__main__":
     elif args['memory']:
         elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = args['procs'])["TIME"])
         #calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
-        print(calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed))
+        print(calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), check_full_log = True))
     elif args['benchmark']:
         elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = args['procs'])["TIME"])
         log = process_dmesg(log_dmesg(), probes = ["IOCTL"])["IOCTL"]
