@@ -46,7 +46,7 @@ import curses
 import argparse
 
 # For type annotations
-from typing import List, Dict
+from typing import List, Dict, Union
 
 # Custom libraries
 from terminal_plot import *
@@ -310,17 +310,22 @@ def parse_model_cfg(cfg_path: str = str(Path.cwd() / 'models.cfg')) -> List[str]
     assert(len(models) > 0)
     return models
 
-# TODO: make configurable
-def run_tflite_bench_random(model_path_pool: List[str], num_proc = 4) -> Dict[str, float]:
+DEFAULT_TFLITE_BENCH_OPTS = { 'num_threads'          : 1,           
+                              'use_hexagon'          : 'true',      
+                              'warmup_runs'          : 1,           
+                              'num_runs'             : 1,           
+                              'hexagon_profiling'    : 'false',     
+                              'enable_op_profiling'  : 'false' }
+
+def run_tflite_bench_random(model_path_pool: List[str],
+                            bench_options: Dict[str, Union[str,int]] = {},
+                            num_proc = 4) -> Dict[str, float]:
     assert(num_proc > 0)
     info_dict = {}
-    base_cmd = ['/data/local/tmp/benchmark_model',  \
-                '--num_threads=1',                  \
-                '--use_hexagon=true',               \
-                '--warmup_runs=1,'                  \
-                '--num_runs=1',                     \
-                '--hexagon_profiling=false',        \
-                '--enable_op_profiling=false']
+    base_cmd = ['/data/local/tmp/benchmark_model']
+    merged_options = {**DEFAULT_TFLITE_BENCH_OPTS,**bench_options}
+    for k,o in merged_options.items():
+        base_cmd.append('--{}={}'.format(k, str(o)))
 
     models = [random.choice(model_path_pool) for _ in range(num_proc)]
     cmd = list.copy(base_cmd)
@@ -349,6 +354,7 @@ if __name__ == "__main__":
     parser.add_argument('--memory', default=False, action='store_true', help='Measure cache statistics for accelerators')
     parser.add_argument('--benchmark', default=False, action='store_true', help='run tflite benchmark')
     parser.add_argument('--verbose', default=False, action='store_true', help='verbose outputs')
+    parser.add_argument('--procs', default=1, type=int, help='number of tflite benchmark processes to run')
     args = vars(parser.parse_args())
     DEBUG = args['debug']
     VERBOSE = args['verbose']
@@ -372,7 +378,7 @@ if __name__ == "__main__":
         #calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
         print(calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed))
     elif args['benchmark']:
-        elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 1)["TIME"])
+        elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = args['procs'])["TIME"])
         log = process_dmesg(log_dmesg(), probes = ["IOCTL"])["IOCTL"]
         printd(log)
         printd("interaction counts: ", calc_accelerator_interaction_count(
