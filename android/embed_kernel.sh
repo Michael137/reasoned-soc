@@ -29,6 +29,6 @@ adb push ${TARGET_DIR}/*.ko /vendor/lib/modules
 
 m bootimage -j12
 
-adb reboot
+adb reboot-bootloader
 
 ~/platform-tools/fastboot flash boot out/target/product/blueline/boot.img

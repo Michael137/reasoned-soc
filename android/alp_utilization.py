@@ -42,35 +42,17 @@ import re
 from random import seed
 import random
 from pathlib import Path
+import curses
+import argparse
 
 # For type annotations
 from typing import List, Dict
 
+# Custom libraries
 from terminal_plot import *
+from plots import *
 
-import curses
-
-DEBUG = True
-ACCELERATORS = [
-    # Qualcomm GPU (KGSL driver)
-    "Ardeno",
-    
-    # JPEG HW, PPROC, VFE, etc.
-    "Camera Sensors",
-
-    # VIDC
-    "Video Codec",
-
-    # Qualcomm IP Accelerator
-    "IPA",
-
-    # Qualcomm aDSP
-    "aDSP",
-
-    # Qualcomm ICE
-    "ICE",
-    "Others"
-]
+DEBUG = False
 
 def printe(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
@@ -162,14 +144,6 @@ def check_reqs():
 
     # TODO: Check if adb has write permissions
 
-def calc_utilization(processed_log: Dict[str,List[str]]) -> List[float]:
-    return [ACCELERATORS, [0] * len(ACCELERATORS)]
-
-# Compute ALP stats
-def alp():
-    # calc_utilization(process_dmesg(log_dmesg()))
-    return [ACCELERATORS, [0] * len(ACCELERATORS)]
-
 # Get utilization numbers via perf probe of driver with
 # name "drv_name"
 def perf(drv_name: str):
@@ -251,13 +225,68 @@ def calc_flush_count(processed_log: Dict[str,List[str]],
     for e in elig_times:
         if 'flushing cache' in e:
             flush_count += 1
-        if 'invalidate cache' in e:
+        elif 'invalidate cache' in e:
             inv_count += 1
 
     printd("# of flushes: ", flush_count)
     printd("# of invalidations: ", inv_count)
 
     return 0
+
+# TODO: validate numbers?
+# TODO: what is the the Adreno driver for? kgsl vs adreno?
+def calc_accelerator_interaction_count(processed_log: Dict[str, List[str]], threshold = 20,
+                                       check_full_log = False) -> Dict[str,int]:
+    if len(processed_log) == 0:
+        return {}
+
+    most_recent = extract_time(processed_log[-1])
+    if check_full_log:
+        elig_times = processed_log
+    else:
+        assert(threshold > 0)
+        elig_times = [t for t in reversed(processed_log) if extract_time(t) >= (most_recent - timedelta(seconds=threshold))]
+
+    accelerators = {}
+    for e in elig_times:
+        # Match pid tag s.a. "... IOCTL aDSP ..."
+        matched = re.search(r'IOCTL ([A-Za-z0-9]+):', e, re.M | re.I)
+
+        if matched is not None:
+            # Extract accelerator name
+            accl = matched.group(1)
+            if accl not in accelerators:
+                accelerators[accl] = 0
+            accelerators[accl] += 1
+
+    return accelerators
+
+######### Utilization Related ##############
+def alp():
+    return [ACCELERATORS, [0] * len(ACCELERATORS)]
+
+# TODO: turn into generator
+# TODO: test
+class StreamDataNaive():
+    prev_log = []
+    # ref_count = 0
+
+    def __init__(self):
+        self.prev_log = process_dmesg(log_dmesg(), probes = ["IOCTL"])["IOCTL"]
+        if len(self.prev_log) > 0:
+            self.latest_ts = extract_time(self.prev_log[-1])
+        else:
+            self.latest_ts = datetime.min
+
+    # TODO: can prev_log be init'ed in ctor?
+    def __call__(self):
+        log = process_dmesg(log_dmesg(), probes = ["IOCTL"])["IOCTL"]
+        self.prev_log = [l for l in reversed(log) if extract_time(l) > self.latest_ts]
+        if len(self.prev_log) > 0:
+            self.latest_ts = extract_time(self.prev_log[-1])
+
+        # New prev_log == newest stream
+        return self.prev_log
 
 ######### Running tflite benchmarks ##############
 # Config should be a list of models with absolute paths
@@ -272,7 +301,7 @@ def parse_model_cfg(cfg_path: str = str(Path.cwd() / 'models.cfg')) -> List[str]
     return models
 
 # TODO: make configurable
-def run_tflite_bench_random(model_pool_path: List[str], num_proc = 4) -> Dict[str, float]:
+def run_tflite_bench_random(model_path_pool: List[str], num_proc = 4) -> Dict[str, float]:
     assert(num_proc > 0)
     info_dict = {}
     base_cmd = ['/data/local/tmp/benchmark_model',  \
@@ -283,7 +312,7 @@ def run_tflite_bench_random(model_pool_path: List[str], num_proc = 4) -> Dict[st
                 '--hexagon_profiling=false',        \
                 '--enable_op_profiling=false']
 
-    models = [random.choice(model_pool_path) for _ in range(num_proc)]
+    models = [random.choice(model_path_pool) for _ in range(num_proc)]
     cmd = list.copy(base_cmd)
     for idx, model in enumerate(models):
         cmd += ['--graph=' + str(model), '&']
@@ -302,16 +331,42 @@ def run_tflite_bench_random(model_pool_path: List[str], num_proc = 4) -> Dict[st
     info_dict['TIME'] = end_t - start_t
     return info_dict
 
+# TODO: accept DEBUG as argument
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Answers all your questions about OS-Accelerator interactions')
+    parser.add_argument('--debug', default=False, action='store_true', help='enable DEBUG mode; printd(...) will print to stderr')
+    parser.add_argument('--gui', default=False, action='store_true', help='show htop-style GUI for accelerator utilization')
+    args = vars(parser.parse_args())
+    DEBUG = args['debug']
+
     random.seed(datetime.now())
 
-    # check_reqs()
-    # elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 2)["TIME"])
-    # calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
-    # calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed)
+    check_reqs()
 
-    try:
-        curses.initscr()
-        live_barchart(alp)
-    finally:
-        curses.endwin()
+    if args['gui']:
+        data_streamer = StreamDataNaive()
+        def barchart_data_streamer():
+            data = calc_accelerator_interaction_count(data_streamer(), check_full_log = True)
+            return [list(data.keys()), list(data.values())]
+        try:
+            curses.initscr()
+            live_barchart(barchart_data_streamer)
+        finally:
+            curses.endwin()
+    else:
+        elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 1)["TIME"])
+        #calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
+        calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), threshold = elapsed)
+        log = process_dmesg(log_dmesg(), probes = ["IOCTL"])["IOCTL"]
+        printd(log)
+        printd("interaction counts: ", calc_accelerator_interaction_count(
+                                            log,
+                                            threshold = elapsed))
+
+    # elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = 1)["TIME"])
+    # data_streamer = StreamDataNaive()
+    # last_log = data_streamer()
+    # printd("interaction counts: ", calc_accelerator_interaction_count(last_log,check_full_log = True))
+    # new_log = data_streamer()
+    # t.sleep(3)
+    # printd("interaction counts: ", calc_accelerator_interaction_count(new_log,check_full_log = True))
