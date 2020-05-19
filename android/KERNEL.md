@@ -125,6 +125,32 @@ endif
 7. OPTIONAL: If you want to build the `msm-google-modules` modules (e.g., the wlan drivers) then you add `EXT_MODULES=private/msm-google-modules` to your `build.config`
 8. Run `build/build.sh -j30` from the root of the overall msm build repo (not necessarily the kernel source)
 
+### Adding and Compiling Custom Device Driver/Kernel Module
+If you're using Google's `build.sh` script to build your kernel then follow below instructions on how to add your own module subdirectory and quickly compile it. The following instructions assume that you already modified the build configuration as in the section **Customizing Kernel Configuration** above to prevent any error when changing kernel code.
+
+1. Add a directory under `msm/private/` where your new modules will live.
+2. Edit the `EXT_MODULES` variable in `private/msm-google/build.config.common` to include your directory from step 1
+3. Add a `Kbuild`, `Kconfig`, `Makefile` and `Android.mk` to your module directory using our custom module [template]custom_modules/perf-mods/) as a template. Your directory structure should look like:
+```
+msm/
+    my-modules/
+        my-module/
+           Kbuild
+           Kconfig
+           Android.mk
+           Makefile
+		   src/
+           inc/
+```
+**Note**: in our module example the `src` and `inc` directories are nested deeper inside other directories. This is not necessary unless you need to support multiple sub-devices or complex module dependencies
+4. To build the module simply run `build/build.sh`
+- **Note**: to speed up the build you can add `SKIP_MRPROPER=1` to `build.config` in the project root which will prevent cleanup of previous builds
+5. To use your module do:
+- `adb push <my_module>.ko /vendor/lib/modules`
+- `adb shell insmod /vendor/lib/modules/<my_module>.ko`
+- Check using: `adb shell lsmod`
+- Remove using: `adb shell rmmod my_module.ko`
+
 ## Troubleshooting
 - sha256sum not found: brew install coreutils
 - UTF-8 encoding:https://stackoverflow.com/questions/26067350/unmappable-character-for-encoding-ascii-but-my-files-are-in-utf-8
