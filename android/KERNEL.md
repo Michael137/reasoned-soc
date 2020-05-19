@@ -130,7 +130,7 @@ If you're using Google's `build.sh` script to build your kernel then follow belo
 
 1. Add a directory under `msm/private/` where your new modules will live.
 2. Edit the `EXT_MODULES` variable in `private/msm-google/build.config.common` to include your directory from step 1
-3. Add a `Kbuild`, `Kconfig`, `Makefile` and `Android.mk` to your module directory using our custom module [template]custom_modules/perf-mods/) as a template. Your directory structure should look like:
+3. Add a `Kbuild`, `Kconfig`, `Makefile` and `Android.mk` to your module directory using our custom module [template](custom_modules/perf-mods/) as a template. Your directory structure should look like:
 ```
 msm/
     my-modules/
