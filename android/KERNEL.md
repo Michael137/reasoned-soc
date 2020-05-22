@@ -151,6 +151,8 @@ msm/
 - Check using: `adb shell lsmod`
 - Remove using: `adb shell rmmod my_module.ko`
 
+See [this SO post](https://stackoverflow.com/questions/6282669/how-do-you-create-a-loadable-kernel-module-for-android) for more info on writing drivers
+
 ## Troubleshooting
 - sha256sum not found: brew install coreutils
 - UTF-8 encoding:https://stackoverflow.com/questions/26067350/unmappable-character-for-encoding-ascii-but-my-files-are-in-utf-8
