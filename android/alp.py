@@ -280,9 +280,6 @@ def calc_accelerator_interaction_count(processed_log: Dict[str, List[str]], thre
 # TODO: turn into generator
 # TODO: test
 class StreamDataNaive():
-    prev_log = []
-    # ref_count = 0
-
     def __init__(self):
         self.prev_log = process_dmesg(log_dmesg(), probes = ["IOCTL"])["IOCTL"]
         if len(self.prev_log) > 0:
@@ -290,7 +287,6 @@ class StreamDataNaive():
         else:
             self.latest_ts = datetime.min
 
-    # TODO: can prev_log be init'ed in ctor?
     def __call__(self):
         log = process_dmesg(log_dmesg(), probes = ["IOCTL"])["IOCTL"]
         self.prev_log = [l for l in reversed(log) if extract_time(l) > self.latest_ts]
@@ -306,8 +302,9 @@ def parse_model_cfg(cfg_path: str = str(Path.cwd() / 'models.cfg')) -> List[str]
     models = []
     with open(cfg_path) as cfg_f:
         for line in cfg_f:
-            models.append(line.strip())
-            # TODO: assert that path exists
+            model_path = line.strip()
+            assert(model_path == run_via_adb(['ls', model_path]))
+            models.append(model_path)
 
     assert(len(models) > 0)
     return models
