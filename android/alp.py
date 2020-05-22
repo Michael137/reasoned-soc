@@ -371,8 +371,11 @@ if __name__ == "__main__":
             data = calc_accelerator_interaction_count(data_streamer(), check_full_log = True)
             return [list(data.keys()), list(data.values())]
         try:
-            curses.initscr()
-            live_barchart(barchart_data_streamer)
+            stdscr = curses.initscr()
+            # height, width
+            MAX_Y, MAX_X = stdscr.getmaxyx()
+
+            live_barchart(barchart_data_streamer, maxY = MAX_Y, maxX = MAX_X)
         finally:
             curses.endwin()
     elif args['memory']:
