@@ -48,7 +48,7 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
   - For more info see the [Android docs on this topic](https://source.android.com/setup/build/downloading#extracting-proprietary-binaries)
 7. `make -j14`
   - You might have to run: `make SELINUX_IGNORE_NEVERALLOWS=true -j14` if you are on MacOS
-8. Reboot
+8. `adb reboot-bootloader; flashall -w`
 9. (Optional) Install Google Play Store:
   - Follow [this SO post](https://stackoverflow.com/questions/41695566/install-google-apps-on-aosp-build/41818710#41818710)
     - In the above guide, **PrebuiltGmsCore** is renamed **PrebuiltGmsCorePi** in the Android 9 build
@@ -71,6 +71,7 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 10. (Optional) Install Chrome browser:
   - Download and [install](https://stackoverflow.com/questions/7076240/install-an-apk-file-from-command-prompt) the Chrome browser apk
 11. (Optional) Make sure the Hexagon DSP runtime works. [If the libadsprpc.so is missing copy it from the Hexagon SDK](https://developer.qualcomm.com/forum/qdn-forums/software/hexagon-dsp-sdk/toolsinstallation/34446)
+  - For the tensorflow Hexagon integration to work download and push the Hexagon libraries as described [here](https://www.tensorflow.org/lite/performance/hexagon_delegate#step_2_add_hexagon_libraries_to_your_android_app_2)
 12. (Optional) Make sure Qualcomm FastRPC works. Check the `$HEXAGON_SDK/examples/common/rpcperf` example
   - More info in the [../dsp_offload/README.md](../dsp_offload/README.md) directory of this repository
 

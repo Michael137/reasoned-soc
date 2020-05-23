@@ -9,7 +9,7 @@ import termios
 import atexit
 from select import select
 from enum import Enum 
-
+from timeit import default_timer as timer
 
 ACCELERATORS = [
     # Qualcomm GPU (KGSL driver)
@@ -40,10 +40,13 @@ def gen_init_data():
     return [ACCELERATORS,
             [0] * len(ACCELERATORS)]
 
+# TODO: should be LabelTypes
 class Modes(Enum):
     null = 0
     interaction = 1
     timing = 2
+    dmesg = 3
+    perf = 4
 
 ############## Non-blocking keyboard input ##############
 # From: https://stackoverflow.com/a/22085679
@@ -96,7 +99,9 @@ class KBHit:
 SEPARATOR = "|"
 LABELS_D = { Modes.null : "Exit (q/ESC)",
              Modes.interaction : "Interaction Counts (i)",
-             Modes.timing : "Timing Counts (t)" }
+             Modes.timing : "Timing Counts (t)",
+             Modes.dmesg : "dmesg (d)",
+             Modes.perf : "perf counters (p)" }
 
 def draw_menu_bar(win, startx, starty, menu_height, menu_width):
     win.attron(curses.color_pair(3))
@@ -121,9 +126,9 @@ def highlight_label(win, startx, starty, label, color_pair):
     win.addstr(startx, len_drawn, l)
     win.attroff(color_pair)
 
-def reset_labels_exclude(win, startx, starty, label):
+def reset_labels_exclude(win, startx, starty, labels):
     for k,l in LABELS_D.items():
-        if k != label:
+        if k not in labels:
             highlight_label(win, startx, starty, k, curses.color_pair(3))
 
 # TODO: rewrite using panels?
@@ -155,13 +160,12 @@ def live_barchart(gen, maxY, maxX):
     curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_YELLOW)
     curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
+    curses.init_pair(4, curses.COLOR_CYAN, curses.COLOR_BLUE)
 
     MENU_HEIGHT = 1
     MENU_WIDTH = WIN_COL - 2 * BORDER_WIDTH
     draw_menu_bar(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH, MENU_HEIGHT, MENU_WIDTH)
     win.refresh()
-
-    mode = Modes.interaction
 
     while True:
         #for idx,val in enumerate(data):
@@ -169,7 +173,7 @@ def live_barchart(gen, maxY, maxX):
         #    win.refresh()
         #    time.sleep(0.03)
 
-        time.sleep(0.1)
+        time.sleep(0.5)
 
         if kb.kbhit():
             c = kb.getch()
@@ -181,14 +185,32 @@ def live_barchart(gen, maxY, maxX):
                 mode = Modes.interaction
                 highlight_label(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH,
                                 mode, curses.color_pair(2))
-                reset_labels_exclude(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH, mode)
+                reset_labels_exclude(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH,
+                                     [mode,Modes.dmesg,Modes.perf])
             elif ord(c) == 116: # t
                 mode = Modes.timing
                 highlight_label(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH,
                                 mode, curses.color_pair(2))
-                reset_labels_exclude(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH, mode)
+                reset_labels_exclude(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH,
+                                     [mode,Modes.dmesg,Modes.perf])
+            elif ord(c) == 100: # d
+                mode = Modes.dmesg
+                highlight_label(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH,
+                                mode, curses.color_pair(4))
+                reset_labels_exclude(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH,
+                                     [mode,Modes.timing,Modes.interaction])
+            elif ord(c) == 112: # p
+                mode = Modes.perf
+                highlight_label(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH,
+                                mode, curses.color_pair(4))
+                reset_labels_exclude(win, WIN_ROW - MENU_HEIGHT - BORDER_WIDTH, BORDER_WIDTH,
+                                     [mode,Modes.timing,Modes.interaction])
 
+        start_t = timer()
         [labels, data] = gen()
+        end_t = timer()
+        win.addstr(WIN_ROW - BORDER_WIDTH - MENU_HEIGHT - 1, BORDER_WIDTH,
+                   'Stream time (s): {}'.format(str(end_t - start_t)))
         assert(len(labels) == len(data))
         for a in ACCELERATORS:
             if a not in labels:
