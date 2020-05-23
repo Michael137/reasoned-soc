@@ -354,19 +354,25 @@ if __name__ == "__main__":
     parser.add_argument('--benchmark', default=False, action='store_true', help='run tflite benchmark')
     parser.add_argument('--verbose', default=False, action='store_true', help='verbose outputs')
     parser.add_argument('--procs', default=1, type=int, help='number of tflite benchmark processes to run')
+    parser.add_argument('--sim', default=False, action='store_true', help='run without device')
     args = vars(parser.parse_args())
     DEBUG = args['debug']
     VERBOSE = args['verbose']
+    SIM = args['sim']
 
     random.seed(datetime.now())
 
-    check_reqs()
+    if not SIM:
+        check_reqs()
 
     if args['gui']:
-        data_streamer = StreamDataNaive()
-        def barchart_data_streamer():
-            data = calc_accelerator_interaction_count(data_streamer(), check_full_log = True)
-            return [list(data.keys()), list(data.values())]
+        if not SIM:
+            data_streamer = StreamDataNaive()
+            def barchart_data_streamer():
+                data = calc_accelerator_interaction_count(data_streamer(), check_full_log = True)
+                return [list(data.keys()), list(data.values())]
+        else:
+            barchart_data_streamer = gen_init_data 
         try:
             stdscr = curses.initscr()
             # height, width
