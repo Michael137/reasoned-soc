@@ -310,12 +310,14 @@ def parse_model_cfg(cfg_path: str = str(Path.cwd() / 'models.cfg')) -> List[str]
     return models
 
 DEFAULT_TFLITE_BENCH_OPTS = { 'num_threads'          : 1,           
-                              'use_hexagon'          : 'true',      
                               'warmup_runs'          : 0,           
                               'num_runs'             : 1,           
                               'hexagon_profiling'    : 'false',     
-                              'enable_op_profiling'  : 'false' }
-
+                              'enable_op_profiling'  : 'false',
+                              'use_hexagon'          : 'false',      
+                              'use_nnapi'            : 'false',
+                              'use_gpu'              : 'false' }
+#                              'disable_nnapi_cpu'    : 'false' 
 def run_tflite_bench_random(model_path_pool: List[str],
                             bench_options: Dict[str, Union[str,int]] = {},
                             num_proc = 4) -> Dict[str, float]:
@@ -337,6 +339,8 @@ def run_tflite_bench_random(model_path_pool: List[str],
     # TODO: make following work: cmd += [';', 'wait', '<', '<(jobs -p)']
     cmd += ['wait']
 
+    # cmd += [';', '/data/local/tmp/adsprpc_perfcounter.out']
+
     printv('Running benchmark using: ', cmd)
     start_t = timer()
     run_via_adb(cmd)
@@ -344,6 +348,15 @@ def run_tflite_bench_random(model_path_pool: List[str],
 
     info_dict['TIME'] = end_t - start_t
     return info_dict
+
+def run_tflite_bench_gpu(num_proc = 4) -> Dict[str, float]:
+    return run_tflite_bench_random(parse_model_cfg(), num_proc = num_proc, bench_options = { 'use_gpu' : 'true' })
+
+def run_tflite_bench_hexagon(num_proc = 4) -> Dict[str, float]:
+    return run_tflite_bench_random(parse_model_cfg(), num_proc = num_proc, bench_options = { 'use_hexagon' : 'true' })
+
+def run_tflite_bench_nnapi(num_proc = 4) -> Dict[str, float]:
+    return run_tflite_bench_random(parse_model_cfg(), num_proc = num_proc, bench_options = { 'use_nnapi' : 'true' })
 
 # TODO: accept DEBUG as argument
 if __name__ == "__main__":
@@ -355,6 +368,8 @@ if __name__ == "__main__":
     parser.add_argument('--verbose', default=False, action='store_true', help='verbose outputs')
     parser.add_argument('--procs', default=1, type=int, help='number of tflite benchmark processes to run')
     parser.add_argument('--sim', default=False, action='store_true', help='run without device')
+    parser.add_argument('--gpu', default=False, action='store_true', help='run with use_gpu enabled')
+    parser.add_argument('--nnapi', default=False, action='store_true', help='run with use_nnapi enabled')
     args = vars(parser.parse_args())
     DEBUG = args['debug']
     VERBOSE = args['verbose']
@@ -386,7 +401,13 @@ if __name__ == "__main__":
         #calc_log_time(process_dmesg(log_dmesg(), probes = ["TIME"]), threshold = elapsed)
         print(calc_flush_count(process_dmesg(log_dmesg(), probes = ["DEBUG"]), check_full_log = True))
     elif args['benchmark']:
-        elapsed = round(run_tflite_bench_random(parse_model_cfg(), num_proc = args['procs'])["TIME"])
+        if args['gpu']:
+            elapsed = round(run_tflite_bench_gpu(num_proc = args['procs'])["TIME"])
+        elif args['nnapi']:
+            elapsed = round(run_tflite_bench_nnapi(num_proc = args['procs'])["TIME"])
+        else:
+            elapsed = round(run_tflite_bench_hexagon(num_proc = args['procs'])["TIME"])
+
         log = process_dmesg(log_dmesg(), probes = ["IOCTL"])["IOCTL"]
         printd(log)
         printd("interaction counts: ", calc_accelerator_interaction_count(
