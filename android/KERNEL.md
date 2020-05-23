@@ -173,6 +173,9 @@ See [this SO post](https://stackoverflow.com/questions/6282669/how-do-you-create
   - E.g., /Users/gardei/platform-tools/fastboot flashall -w
 - Fastboot operation not supported:
   - Flash the factory image for the operating system you are replacing and retry the fastboot flashall
+- `fastboot devices` doesn't list your device:
+  - Unplug all other USB devices and try again
+    - Other USB connections can interfere with your phone's connection
 
 # Compiling code to run on an Android phone
 Here we describe the process of compiling C code, pushing the binary to an Android device and running it through ADB.
