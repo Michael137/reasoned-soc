@@ -120,6 +120,9 @@ def run_via_adb(user_cmd: List[str]) -> str:
 def check_adb_root() -> bool:
     return run_via_adb(["whoami"]) == "root"
 
+def file_exists_on_device(path: str) -> bool:
+    return path == run_via_adb(['ls', path])
+
 def check_reqs():
     required_bins = ["adb"]
     not_found = []
@@ -300,10 +303,11 @@ class StreamDataNaive():
 # Config should be a list of models with absolute paths
 def parse_model_cfg(cfg_path: str = str(Path.cwd() / 'models.cfg')) -> List[str]:
     models = []
+    assert(file_exists_on_device('/data/local/tmp/benchmark_model'))
     with open(cfg_path) as cfg_f:
         for line in cfg_f:
             model_path = line.strip()
-            assert(model_path == run_via_adb(['ls', model_path]))
+            assert(file_exists_on_device(model_path))
             models.append(model_path)
 
     assert(len(models) > 0)
