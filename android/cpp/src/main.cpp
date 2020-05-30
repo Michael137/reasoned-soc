@@ -14,6 +14,7 @@
 #include <SFML/Window/Event.hpp>
 
 #include "atop.h"
+#include "logger.h"
 
 static constexpr auto USAGE =
     R"(atop - accelerator viewer
@@ -34,13 +35,7 @@ static constexpr auto USAGE =
 
 static constexpr auto VERSION_STRING = "atop - Version 0.1";
 
-static bool VERBOSE{false};
-
-inline void info_if( std::string const& msg )
-{
-	if( VERBOSE )
-		spdlog::info( msg );
-}
+bool VERBOSE{false};
 
 int main( int argc, const char** argv )
 {
@@ -58,15 +53,15 @@ int main( int argc, const char** argv )
 
 	if( ( on_gpu || on_nnapi || !on_dsp || ( procs != 1 ) ) && benchmark )
 	{
-		spdlog::error(
-		    "Specified --proc, --gpu, --nnapi or --dsp without the --benchmark flag" );
+		spdlog::error( "Specified --proc, --gpu, --nnapi or --dsp without the "
+		               "--benchmark flag" );
 		std::abort();
 	}
 
-	if(!sim)
+	if( !sim )
 		atop::check_reqs();
 
-	info_if( "Starting atop" );
+	atop::logger::verbose_info( "Starting atop" );
 
 	sf::RenderWindow window( sf::VideoMode( 2560, 1920 ),
 	                         "atop - accelerator viewer" );
@@ -91,7 +86,7 @@ int main( int argc, const char** argv )
 
 			if( event.type == sf::Event::Closed )
 			{
-				info_if("Window close requested...exiting");
+				atop::logger::verbose_info( "Window close requested...exiting" );
 				window.close();
 			}
 		}
