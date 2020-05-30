@@ -1,21 +1,72 @@
+#include <cstdlib>
 #include <functional>
 #include <iostream>
+#include <iterator>
+#include <map>
 
-#include <spdlog/spdlog.h>
-
+#include <docopt/docopt.h>
 #include <imgui-SFML.h>
 #include <imgui.h>
-
+#include <spdlog/spdlog.h>
 #include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Event.hpp>
 
-#include <iostream>
+#include "atop.h"
 
-int main( [[maybe_unused]] int argc, [[maybe_unused]] const char** argv )
+static constexpr auto USAGE =
+    R"(atop - accelerator viewer
+	  Usage:
+			atop [options]
+
+	  Options:
+	  		-h, --help        Show usage
+			-v, --verbose     Verbose outputs [default: false]
+			-b, --benchmark   Run sample workload [default: false]
+			-p N, --procs=N   How many processes to spawn for sample workload (requires -b) [default: 1]
+			-g, --gpu         Run sample workload on GPU only (requires -b) [default: false]
+			-n, --nnapi       Run sample workload using NNAPI delegate (requires -b) [default: false]
+			-d, --dsp         Run sample workload on DSP only (requires -b) [default: true]
+			-s, --sim         Run without device [default: false]
+			-V, --version     Show version
+		)";
+
+static constexpr auto VERSION_STRING = "atop - Version 0.1";
+
+static bool VERBOSE{false};
+
+inline void info_if( std::string const& msg )
 {
-	spdlog::info( "Starting atop" );
+	if( VERBOSE )
+		spdlog::info( msg );
+}
+
+int main( int argc, const char** argv )
+{
+	std::map<std::string, docopt::value> args = docopt::docopt(
+	    USAGE, {std::next( argv ), std::next( argv, argc )},
+	    true /* show if help is requested */, VERSION_STRING );
+
+	VERBOSE              = args["--verbose"].asBool();
+	const bool benchmark = args["--benchmark"].asBool();
+	const long procs     = args["--procs"].asLong();
+	const bool on_gpu    = args["--gpu"].asBool();
+	const bool on_nnapi  = args["--nnapi"].asBool();
+	const bool on_dsp    = args["--dsp"].asBool();
+	const bool sim       = args["--sim"].asBool();
+
+	if( ( on_gpu || on_nnapi || !on_dsp || ( procs != 1 ) ) && benchmark )
+	{
+		spdlog::error(
+		    "Specified --proc, --gpu, --nnapi or --dsp without the --benchmark flag" );
+		std::abort();
+	}
+
+	if(!sim)
+		atop::check_reqs();
+
+	info_if( "Starting atop" );
 
 	sf::RenderWindow window( sf::VideoMode( 2560, 1920 ),
 	                         "atop - accelerator viewer" );
@@ -40,6 +91,7 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] const char** argv )
 
 			if( event.type == sf::Event::Closed )
 			{
+				info_if("Window close requested...exiting");
 				window.close();
 			}
 		}
@@ -58,6 +110,8 @@ int main( [[maybe_unused]] int argc, [[maybe_unused]] const char** argv )
 		ImGui::RadioButton( "interaction", &util_rb, 0 );
 		ImGui::SameLine();
 		ImGui::RadioButton( "timing", &util_rb, 1 );
+
+		ImGui::Checkbox( "Verbose (stdout)", &VERBOSE );
 
 		ImGui::Button( "Pause" );
 
