@@ -15,6 +15,15 @@ std::vector<std::string> split( const std::string&, char delimiter );
 
 double extract_time( std::string const& );
 
+class NotImplementedException : public std::logic_error
+{
+   public:
+	explicit NotImplementedException(std::string const& msg): logic_error(msg) {}
+	NotImplementedException(): logic_error("Function not yet implemented") {}
+
+	virtual char const* what() const noexcept override { return "Function not yet implemented."; }
+};
+
 } // namespace util
 } // namespace atop
 

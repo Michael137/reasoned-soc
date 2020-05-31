@@ -8,6 +8,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <iostream>
+
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 
@@ -204,7 +206,7 @@ atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 	}
 
 	// Reset
-	for(auto& p: this->latest_interactions)
+	for( auto& p: this->latest_interactions )
 		this->latest_interactions[p.first] = 0;
 	// this->latest_interactions.clear();
 
@@ -222,4 +224,53 @@ atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 	}
 
 	return this->latest_interactions;
+}
+
+static bool file_exists_on_device( std::string const& pth )
+{
+	return atop::check_console_output( "adb shell ls " + pth )[0] == pth;
+}
+
+static void check_file_exists_on_device( std::string const& pth )
+{
+	if( !file_exists_on_device( pth ) )
+		atop::logger::log_and_exit(
+		    fmt::format( "Path '{0}' doesn't exist on device", pth ) );
+}
+
+void atop::check_tflite_reqs()
+{
+	std::string const benchmark_bin = "/data/local/tmp/benchmark_model";
+	check_file_exists_on_device( benchmark_bin );
+}
+
+std::vector<std::string> atop::get_tflite_models()
+{
+	// TODO: use filesystem lib
+	// TODO: create separate directory for tflite benchmark models
+	std::vector<std::string> paths
+	    = check_console_output( "adb shell ls -d /data/local/tmp/*.tflite" );
+	for( auto& p: paths )
+		check_file_exists_on_device( p );
+	return paths;
+}
+
+std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
+{
+	// Check benchmark file exists on device
+	// 		framework ->
+	// 			check framework reqs
+	// 			get framework models
+
+	switch( fr )
+	{
+		case atop::Frameworks::mlperf:
+		case atop::Frameworks::SNPE:
+			throw atop::util::NotImplementedException(
+			    fmt::format( "Framework {0} not yet implemented",
+			                 atop::framework2string( fr ) ) );
+		case atop::Frameworks::tflite:
+			atop::check_tflite_reqs();
+			return atop::get_tflite_models();
+	}
 }

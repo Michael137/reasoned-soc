@@ -55,6 +55,18 @@ bool ComboBox( const char* label, int* currIndex,
 	                     static_cast<int>( values.size() ) );
 }
 
+static std::vector<std::pair<std::string, bool>>
+init_imgui_models_vec( std::vector<std::string> const& models )
+{
+	std::vector<std::pair<std::string, bool>> result;
+	result.reserve( models.size() );
+	std::for_each( begin( models ), end( models ),
+	               [&result]( std::string const& m ) {
+		               result.push_back( std::make_pair( m, true ) );
+	               } );
+	return result;
+}
+
 using namespace std::chrono_literals;
 
 static constexpr auto USAGE =
@@ -122,20 +134,24 @@ int main( int argc, const char** argv )
 	static std::vector<std::string> frameworks = {"tflite", "mlperf", "SNPE"};
 	// TODO: should be populated from path on device which in turn is derived
 	// from chosen framework
-	static std::vector<std::pair<std::string, bool>> models
-	    = {{"PLACEHOLDER1", false},
-	       {"PLACEHOLDER2", false},
-	       {"PLACEHOLDER3", false}};
+	static std::vector<std::pair<std::string, bool>> models{
+	    init_imgui_models_vec(
+	        atop::get_models_on_device( atop::string2framework(
+	            frameworks[static_cast<size_t>( sel_framework )] ) ) )};
 
 	static int num_procs = 1;
 
 	constexpr auto streamer_refresh_rate = 2s;
 	atop::IoctlDmesgStreamer streamer;
-	auto timer_prev = std::chrono::system_clock::now();
-	auto timer_cur  = timer_prev;
-	auto data       = streamer.get_interactions();
+	std::chrono::time_point<std::chrono::system_clock> timer_prev
+	    = std::chrono::system_clock::now();
+	std::chrono::time_point<std::chrono::system_clock> timer_cur;
+
+	auto data = streamer.get_interactions();
 
 	float stream_latency = 0.0;
+
+	atop::logger::verbose_info( "Finished initializtion" );
 
 	static bool timer_win_b = true;
 	sf::Clock deltaClock;
@@ -228,12 +244,12 @@ int main( int argc, const char** argv )
 			// std::cout << p.first << " " << p.second << std::endl;
 		}
 
-		auto cur_max  = std::max_element( std::begin( interactions ),
-                                         std::end( interactions ) );
-		int num_ticks = 0;
+		auto cur_max = std::max_element( std::begin( interactions ),
+		                                 std::end( interactions ) );
 		for( size_t i = 0; i < interactions.size(); ++i )
 		{
-			float scale = static_cast<float>( interactions[i] )
+			int num_ticks = 0;
+			float scale   = static_cast<float>( interactions[i] )
 			              / static_cast<float>( *cur_max );
 			// TODO: handle scaling
 			float scaled = ( win_width * scale
@@ -263,7 +279,14 @@ int main( int argc, const char** argv )
 		ImGui::SameLine();
 		ImGui::RadioButton( "NNAPI", &delegate_rb, 2 );
 
-		ComboBox( "Framework", &sel_framework, frameworks );
+		if( ComboBox( "Framework", &sel_framework, frameworks ) )
+		{
+			atop::logger::verbose_info( fmt::format(
+			    "Changed model framework to: {0}",
+			    frameworks[static_cast<size_t>( sel_framework )] ) );
+
+			// TODO: populate models
+		}
 
 		if( ImGui::ListBoxHeader( "Models" ) )
 		{
