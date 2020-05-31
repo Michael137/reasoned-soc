@@ -7,6 +7,7 @@
 #include <map>
 #include <sstream>
 #include <unordered_map>
+#include <utility>
 
 #include <docopt/docopt.h>
 #include <imgui-SFML.h>
@@ -19,6 +20,40 @@
 
 #include "atop.h"
 #include "logger.h"
+
+static auto vector_getter = []( void* vec, int idx, const char** out_text ) {
+	auto& vector = *static_cast<std::vector<std::string>*>( vec );
+	if( idx < 0 || idx >= static_cast<int>( vector.size() ) )
+	{
+		return false;
+	}
+	*out_text = vector.at( static_cast<size_t>( idx ) ).c_str();
+	return true;
+};
+
+bool ListBox( const char* label, int* currIndex,
+              std::vector<std::string>& values )
+{
+	if( values.empty() )
+	{
+		return false;
+	}
+	return ImGui::ListBox( label, currIndex, vector_getter,
+	                       static_cast<void*>( &values ),
+	                       static_cast<int>( values.size() ) );
+}
+
+bool ComboBox( const char* label, int* currIndex,
+               std::vector<std::string>& values )
+{
+	if( values.empty() )
+	{
+		return false;
+	}
+	return ImGui::Combo( label, currIndex, vector_getter,
+	                     static_cast<void*>( &values ),
+	                     static_cast<int>( values.size() ) );
+}
 
 using namespace std::chrono_literals;
 
@@ -81,6 +116,18 @@ int main( int argc, const char** argv )
 
 	static int data_src_rb = 0;
 	static int util_rb     = 0;
+
+	static int delegate_rb                     = 0;
+	static int sel_framework                   = 0;
+	static std::vector<std::string> frameworks = {"tflite", "mlperf", "SNPE"};
+	// TODO: should be populated from path on device which in turn is derived
+	// from chosen framework
+	static std::vector<std::pair<std::string, bool>> models
+	    = {{"PLACEHOLDER1", false},
+	       {"PLACEHOLDER2", false},
+	       {"PLACEHOLDER3", false}};
+
+	static int num_procs = 1;
 
 	constexpr auto streamer_refresh_rate = 2s;
 	atop::IoctlDmesgStreamer streamer;
@@ -164,6 +211,7 @@ int main( int argc, const char** argv )
 
 		/* Utilization window */
 		ImGui::Begin( "Utilization" );
+
 		auto win_size  = ImGui::GetWindowSize();
 		auto win_width = win_size.x;
 		// auto win_height = win_size.y;
@@ -177,7 +225,7 @@ int main( int argc, const char** argv )
 			labels.push_back( p.first );
 			interactions.push_back( p.second );
 
-			std::cout << p.first << " " << p.second << std::endl;
+			// std::cout << p.first << " " << p.second << std::endl;
 		}
 
 		auto cur_max  = std::max_element( std::begin( interactions ),
@@ -186,24 +234,52 @@ int main( int argc, const char** argv )
 		for( size_t i = 0; i < interactions.size(); ++i )
 		{
 			float scale = static_cast<float>( interactions[i] )
-				          / static_cast<float>( *cur_max );
+			              / static_cast<float>( *cur_max );
 			// TODO: handle scaling
-			float scaled = (win_width * scale / static_cast<float>(font_scale_factor)) / 8;
+			float scaled = ( win_width * scale
+			                 / static_cast<float>( font_scale_factor ) )
+			               / 8;
 			if( scaled > 0 )
-				scaled = std::max(
-					1, static_cast<int>( std::floor( scaled ) ) );
+				scaled
+				    = std::max( 1, static_cast<int>( std::floor( scaled ) ) );
 
 			num_ticks = static_cast<int>( scaled );
-			std::cout << scale << " " << scaled << " " << num_ticks
-				      << std::endl;
+			// std::cout << scale << " " << scaled << " " << num_ticks <<
+			// std::endl;
 
 			std::stringstream ss;
 			for( int j = 0; j < num_ticks; ++j )
 				ss << '#';
 			ImGui::TextUnformatted(
-				fmt::format( "{0}| {1}", labels[i], ss.str() ).c_str() );
+			    fmt::format( "{0}| {1}", labels[i], ss.str() ).c_str() );
 		}
 
+		ImGui::End();
+
+		ImGui::Begin( "Workload Simulator" );
+		ImGui::RadioButton( "Hexagon DSP", &delegate_rb, 0 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "GPU", &delegate_rb, 1 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "NNAPI", &delegate_rb, 2 );
+
+		ComboBox( "Framework", &sel_framework, frameworks );
+
+		if( ImGui::ListBoxHeader( "Models" ) )
+		{
+			for( size_t n = 0; n < models.size(); n++ )
+			{
+				if( ImGui::Selectable( models[n].first.c_str(),
+				                       models[n].second ) )
+					models[n].second ^= true;
+			}
+
+			ImGui::ListBoxFooter();
+		}
+
+		ImGui::InputInt( "Processes", &num_procs );
+
+		ImGui::Button( "Run" );
 		ImGui::End();
 
 		window.clear();
