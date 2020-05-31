@@ -19,15 +19,9 @@ inline void info_if( std::string const& msg, bool cond )
 		spdlog::info( msg );
 }
 
-inline void verbose_info( std::string const& msg)
-{
-	info_if(msg, VERBOSE);
-}
+inline void verbose_info( std::string const& msg ) { info_if( msg, VERBOSE ); }
 
-inline void warn( std::string const& msg)
-{
-	spdlog::warn(msg);
-}
+inline void warn( std::string const& msg ) { spdlog::warn( msg ); }
 
 } // namespace logger
 } // namespace atop

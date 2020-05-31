@@ -77,7 +77,7 @@ def log_dmesg() -> str:
     output = run_via_adb(cmd)
     return output
 
-def process_dmesg(log: str, probes: List[str] = ["DEBUG","IOCTL","TIME"]) -> Dict[str, List[str]]:
+def process_dmesg(log: str, probes: List[str] = ["DEBUG","IOCTL","TIME"]) -> Dict[str, List[float]]:
     lines = log.split('\n')
 
     results = {}

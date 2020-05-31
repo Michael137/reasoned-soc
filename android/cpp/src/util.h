@@ -11,7 +11,9 @@ void ltrim( std::string& s );
 void rtrim( std::string& s );
 void trim( std::string& s );
 
-std::vector<std::string> split( const std::string& s, char delimiter );
+std::vector<std::string> split( const std::string&, char delimiter );
+
+double extract_time( std::string const& );
 
 } // namespace util
 } // namespace atop

@@ -2,11 +2,11 @@
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <regex>
 #include <stdexcept>
 #include <string>
+#include <unordered_map>
 #include <vector>
-
-#include <iostream>
 
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
@@ -42,7 +42,7 @@ std::vector<std::string> atop::check_console_output( std::string const& cmd )
 
 static bool in_adb_root()
 {
-	return atop::check_console_output("adb shell whoami")[0] == "root";
+	return atop::check_console_output( "adb shell whoami" )[0] == "root";
 }
 
 void atop::check_reqs()
@@ -85,16 +85,141 @@ void atop::check_reqs()
 		    "enable USB debugging)" );
 
 	// Is adb connected as root?
-	if(!in_adb_root())
+	if( !in_adb_root() )
 	{
-		atop::logger::warn("atop requires adb in root...restarting as root");
-		std::system("adb root");
-		if(!in_adb_root())
-			atop::logger::log_and_exit("Failed to restart adb in root");
+		atop::logger::warn( "atop requires adb in root...restarting as root" );
+		std::system( "adb root" );
+		if( !in_adb_root() )
+			atop::logger::log_and_exit( "Failed to restart adb in root" );
 	}
 
 	atop::logger::verbose_info(
 	    fmt::format( "Found device: {0}", device_name ) );
 
 	// TODO: check adb write permissions
+}
+
+static std::vector<std::string> check_adb_shell_output( std::string const& cmd )
+{
+	return atop::check_console_output( "adb shell " + cmd );
+}
+
+static std::vector<std::string> check_dmesg_log()
+{
+	return check_adb_shell_output( "dmesg" );
+}
+
+static std::vector<std::string>
+process_dmesg_log( std::vector<std::string> const& log,
+                   std::string const& probe )
+{
+	std::vector<std::string> results;
+	for( auto& line: log )
+	{
+		if( line.find( probe ) == std::string::npos )
+			continue;
+
+		results.emplace_back( line );
+	}
+
+	return results;
+}
+
+atop::IoctlDmesgStreamer::IoctlDmesgStreamer()
+    : latest_ts( 0.0 )
+    , latest_data( process_dmesg_log( check_dmesg_log(), "IOCTL" ) )
+    , latest_interactions( {
+          {"ardeno", 0},
+          {"kgsl", 0},
+          {"vidioc", 0},
+          {"cam_sensor", 0},
+          {"v4l2", 0},
+          {"IPA", 0},
+          {"aDSP", 0},
+          {"cDSP", 0},
+          {"ICE", 0},
+          {"Others", 0},
+      } )
+{
+	if( this->latest_data.size() > 0 )
+		this->latest_ts = atop::util::extract_time( this->latest_data.back() );
+}
+
+std::vector<std::string> const& atop::IoctlDmesgStreamer::more()
+{
+	auto data = process_dmesg_log( check_dmesg_log(), "IOCTL" );
+	std::vector<std::string> new_data;
+	for( auto it = data.rbegin(); it != data.rend(); ++it )
+	{
+		if( atop::util::extract_time( *it ) > this->latest_ts )
+			new_data.push_back( *it );
+		else
+			break;
+	}
+
+	this->latest_data = new_data;
+
+	if( this->latest_data.size() > 0 )
+		this->latest_ts = atop::util::extract_time( this->latest_data.back() );
+
+	return this->latest_data;
+}
+
+static std::string extract_dmesg_accl_tag( std::string const& str )
+{
+	std::regex pattern{R"(IOCTL ([A-Za-z0-9]+):)"};
+	std::smatch match;
+
+	if( std::regex_search( str, match, pattern ) )
+	{
+		std::string ts_str = match[1].str();
+		atop::util::trim( ts_str );
+
+		return ts_str;
+	}
+	else
+		return "";
+}
+
+std::unordered_map<std::string, int> const&
+atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
+{
+	std::vector<std::string> eligible;
+	auto data = this->more();
+	if( data.size() == 0 )
+		return this->latest_interactions;
+
+	auto most_recent = atop::util::extract_time( data.back() );
+	if( check_full_log )
+		eligible = this->latest_data;
+	else
+	{
+		for( auto it = data.rbegin(); it != data.rend(); ++it )
+		{
+			if( atop::util::extract_time( *it ) >= ( most_recent - threshold ) )
+				eligible.push_back( *it );
+			else
+				break;
+		}
+	}
+
+	// Reset
+	for(auto& p: this->latest_interactions)
+		this->latest_interactions[p.first] = 0;
+	// this->latest_interactions.clear();
+
+	std::string tag;
+	for( auto& line: eligible )
+	{
+		tag = extract_dmesg_accl_tag( line );
+		if( !tag.empty() )
+		{
+			if( this->latest_interactions.find( tag )
+			    == this->latest_interactions.end() )
+				this->latest_interactions.insert( {tag, 0} );
+			this->latest_interactions[tag] += 1;
+		}
+	}
+
+	return this->latest_interactions;
 }
