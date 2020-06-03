@@ -142,6 +142,7 @@ int main( int argc, const char** argv )
 
 	static bool utilization_paused = false;
 	static bool cpu_fallback       = false;
+	static bool fixed_scale        = true;
 
 	constexpr auto streamer_refresh_rate = 2s;
 	atop::IoctlDmesgStreamer streamer;
@@ -152,6 +153,8 @@ int main( int argc, const char** argv )
 	auto data = streamer.get_interactions();
 
 	float stream_latency = 0.0;
+
+	static std::unordered_map<std::string, int> max_interactions{};
 
 	atop::logger::verbose_info( "Finished initializtion" );
 
@@ -180,7 +183,7 @@ int main( int argc, const char** argv )
 		           >= streamer_refresh_rate.count() )
 		{
 			auto start = std::chrono::system_clock::now();
-			data       = streamer.interactions( true );
+			data       = streamer.interactions( true /* check full log */ );
 			timer_prev = timer_cur;
 			auto end   = std::chrono::system_clock::now();
 
@@ -222,13 +225,15 @@ int main( int argc, const char** argv )
 		ImGui::SameLine();
 		ImGui::RadioButton( "timing", &util_rb, 1 );
 
+		if( ImGui::Checkbox( "Fixed Scaling", &fixed_scale ) )
+			atop::logger::verbose_info( "Fixed scaling toggled on" );
+		ImGui::SameLine();
 		if( ImGui::Checkbox( "Verbose (stdout)", &VERBOSE ) )
-		{
 			atop::logger::verbose_info( "Verbose toggled on" );
-		}
 
-		ImGui::Button( "Pause" );
-		utilization_paused ^= true;
+		if( ImGui::Button( "Pause" ) )
+			utilization_paused ^= true;
+
 		ImGui::End();
 
 		/* Utilization window */
@@ -246,31 +251,40 @@ int main( int argc, const char** argv )
 		{
 			labels.push_back( p.first );
 			interactions.push_back( p.second );
-
-			// std::cout << p.first << " " << p.second << std::endl;
 		}
 
 		auto cur_max = std::max_element( std::begin( interactions ),
 		                                 std::end( interactions ) );
 		for( size_t i = 0; i < interactions.size(); ++i )
 		{
-			int num_ticks = 0;
-			float scale   = static_cast<float>( interactions[i] )
-			              / static_cast<float>( *cur_max );
-			// TODO: handle scaling
-			float scaled = ( win_width * scale
-			                 / static_cast<float>( font_scale_factor ) )
-			               / 8;
-			if( scaled > 0 )
-				scaled
-				    = std::max( 1, static_cast<int>( std::floor( scaled ) ) );
+			double scale = 0.0;
+			if( fixed_scale )
+			{
+				auto it = max_interactions.find( labels[i] );
+				if( it == max_interactions.end() )
+					max_interactions[labels[i]] = interactions[i];
+				int max_
+				    = std::max( max_interactions[labels[i]], interactions[i] );
 
-			num_ticks = static_cast<int>( scaled );
-			// std::cout << scale << " " << scaled << " " << num_ticks <<
-			// std::endl;
+				scale = static_cast<double>( interactions[i] )
+				        / static_cast<double>( max_ );
+
+				max_interactions[labels[i]] = max_;
+			}
+			else
+			{
+				scale = static_cast<double>( interactions[i] )
+				        / static_cast<double>( *cur_max );
+			}
+
+			auto num_ticks = ( static_cast<double>( win_width ) * scale
+			                   / font_scale_factor )
+			                 / 8.0; // TODO: handle scaling
+			if( num_ticks > 0.0 )
+				num_ticks = std::max( 1.0, std::floor( num_ticks ) );
 
 			std::stringstream ss;
-			for( int j = 0; j < num_ticks; ++j )
+			for( int j = 0; j < static_cast<int>( num_ticks ); ++j )
 				ss << '#';
 			ImGui::TextUnformatted(
 			    fmt::format( "{0}| {1}", labels[i], ss.str() ).c_str() );
@@ -314,8 +328,8 @@ int main( int argc, const char** argv )
 			     {"enable_op_profiling", "false"},
 			     {"disable_nnapi_cpu", atop::util::bool2string( cpu_fallback )},
 			     {"use_hexagon", atop::util::bool2string( delegate_rb == 0 )},
-			     {"use_nnapi", atop::util::bool2string( delegate_rb == 1 )},
-			     {"use_gpu", atop::util::bool2string( delegate_rb == 2 )}},
+			     {"use_gpu", atop::util::bool2string( delegate_rb == 1 )},
+			     {"use_nnapi", atop::util::bool2string( delegate_rb == 2 )}},
 			    num_procs );
 			ImGui::End();
 		}

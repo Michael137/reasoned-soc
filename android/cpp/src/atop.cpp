@@ -104,7 +104,7 @@ void atop::check_reqs()
 
 static std::vector<std::string> check_adb_shell_output( std::string const& cmd )
 {
-	return atop::check_console_output( "adb shell " + cmd );
+	return atop::check_console_output( fmt::format( "adb shell \"{}\"", cmd ) );
 }
 
 static std::vector<std::string> check_dmesg_log()
@@ -296,7 +296,8 @@ void atop::run_tflite_benchmark(
 
 	cmd << "wait";
 
-	atop::logger::verbose_info(fmt::format("Running tflite benchmark using: {0}", cmd.str()));
+	atop::logger::verbose_info(
+	    fmt::format( "Running tflite benchmark using: {0}", cmd.str() ) );
 
-	check_adb_shell_output(cmd.str());
+	check_adb_shell_output( cmd.str() );
 }
