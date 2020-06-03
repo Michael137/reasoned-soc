@@ -39,9 +39,9 @@ inline Frameworks string2framework( std::string fr )
 
 inline std::string framework2string( Frameworks fr )
 {
-	auto it = std::find_if(
-	    std::begin( frameworks_table ), std::end( frameworks_table ),
-	    [&]( auto&& p ) { return p.second == fr; } );
+	auto it = std::find_if( std::begin( frameworks_table ),
+	                        std::end( frameworks_table ),
+	                        [&]( auto&& p ) { return p.second == fr; } );
 
 	if( it != std::end( frameworks_table ) )
 	{
@@ -56,6 +56,11 @@ void check_tflite_reqs();
 std::vector<std::string> check_console_output( std::string const& cmd );
 std::vector<std::string> get_tflite_models();
 std::vector<std::string> get_models_on_device( Frameworks );
+
+// TODO: use std::variant for options?
+void run_tflite_benchmark( std::vector<std::string> model_paths,
+                           std::unordered_map<std::string, std::string> options,
+                           int processes = 1 );
 
 class IoctlDmesgStreamer
 {

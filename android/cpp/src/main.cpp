@@ -67,6 +67,19 @@ init_imgui_models_vec( std::vector<std::string> const& models )
 	return result;
 }
 
+std::vector<std::string>
+unzip_imgui_models( std::vector<std::pair<std::string, bool>> const& vec )
+{
+	std::vector<std::string> res;
+	std::for_each( vec.begin(), vec.end(),
+	               [&]( std::pair<std::string, bool> const& p ) {
+		               if( p.second )
+			               res.push_back( p.first );
+	               } );
+
+	return res;
+}
+
 using namespace std::chrono_literals;
 
 static constexpr auto USAGE =
@@ -77,11 +90,6 @@ static constexpr auto USAGE =
 	  Options:
 	  		-h, --help        Show usage
 			-v, --verbose     Verbose outputs [default: false]
-			-b, --benchmark   Run sample workload [default: false]
-			-p N, --procs=N   How many processes to spawn for sample workload (requires -b) [default: 1]
-			-g, --gpu         Run sample workload on GPU only (requires -b) [default: false]
-			-n, --nnapi       Run sample workload using NNAPI delegate (requires -b) [default: false]
-			-d, --dsp         Run sample workload on DSP only (requires -b) [default: true]
 			-s, --sim         Run without device [default: false]
 			-V, --version     Show version
 		)";
@@ -96,20 +104,8 @@ int main( int argc, const char** argv )
 	    USAGE, {std::next( argv ), std::next( argv, argc )},
 	    true /* show if help is requested */, VERSION_STRING );
 
-	VERBOSE              = args["--verbose"].asBool();
-	const bool benchmark = args["--benchmark"].asBool();
-	const long procs     = args["--procs"].asLong();
-	const bool on_gpu    = args["--gpu"].asBool();
-	const bool on_nnapi  = args["--nnapi"].asBool();
-	const bool on_dsp    = args["--dsp"].asBool();
-	const bool sim       = args["--sim"].asBool();
-
-	if( ( on_gpu || on_nnapi || !on_dsp || ( procs != 1 ) ) && benchmark )
-	{
-		spdlog::error( "Specified --proc, --gpu, --nnapi or --dsp without the "
-		               "--benchmark flag" );
-		std::abort();
-	}
+	VERBOSE        = args["--verbose"].asBool();
+	const bool sim = args["--sim"].asBool();
 
 	if( !sim )
 		atop::check_reqs();
@@ -132,14 +128,20 @@ int main( int argc, const char** argv )
 	static int delegate_rb                     = 0;
 	static int sel_framework                   = 0;
 	static std::vector<std::string> frameworks = {"tflite", "mlperf", "SNPE"};
-	// TODO: should be populated from path on device which in turn is derived
-	// from chosen framework
+
+	// TODO: is models + selected_models a better structure than the embedded
+	// boolean?
 	static std::vector<std::pair<std::string, bool>> models{
 	    init_imgui_models_vec(
 	        atop::get_models_on_device( atop::string2framework(
 	            frameworks[static_cast<size_t>( sel_framework )] ) ) )};
 
-	static int num_procs = 1;
+	static int num_procs       = 1;
+	static int num_runs        = 1;
+	static int num_warmup_runs = 0;
+
+	static bool utilization_paused = false;
+	static bool cpu_fallback       = false;
 
 	constexpr auto streamer_refresh_rate = 2s;
 	atop::IoctlDmesgStreamer streamer;
@@ -171,10 +173,11 @@ int main( int argc, const char** argv )
 		}
 
 		timer_cur = std::chrono::system_clock::now();
-		if( std::chrono::duration_cast<std::chrono::seconds>( timer_cur
-		                                                      - timer_prev )
-		        .count()
-		    >= streamer_refresh_rate.count() )
+		if( !utilization_paused
+		    && std::chrono::duration_cast<std::chrono::seconds>( timer_cur
+		                                                         - timer_prev )
+		               .count()
+		           >= streamer_refresh_rate.count() )
 		{
 			auto start = std::chrono::system_clock::now();
 			data       = streamer.interactions( true );
@@ -219,10 +222,13 @@ int main( int argc, const char** argv )
 		ImGui::SameLine();
 		ImGui::RadioButton( "timing", &util_rb, 1 );
 
-		ImGui::Checkbox( "Verbose (stdout)", &VERBOSE );
+		if( ImGui::Checkbox( "Verbose (stdout)", &VERBOSE ) )
+		{
+			atop::logger::verbose_info( "Verbose toggled on" );
+		}
 
 		ImGui::Button( "Pause" );
-
+		utilization_paused ^= true;
 		ImGui::End();
 
 		/* Utilization window */
@@ -273,11 +279,6 @@ int main( int argc, const char** argv )
 		ImGui::End();
 
 		ImGui::Begin( "Workload Simulator" );
-		ImGui::RadioButton( "Hexagon DSP", &delegate_rb, 0 );
-		ImGui::SameLine();
-		ImGui::RadioButton( "GPU", &delegate_rb, 1 );
-		ImGui::SameLine();
-		ImGui::RadioButton( "NNAPI", &delegate_rb, 2 );
 
 		if( ComboBox( "Framework", &sel_framework, frameworks ) )
 		{
@@ -302,8 +303,33 @@ int main( int argc, const char** argv )
 
 		ImGui::InputInt( "Processes", &num_procs );
 
-		ImGui::Button( "Run" );
-		ImGui::End();
+		if( ImGui::Button( "Run" ) )
+		{
+			atop::run_tflite_benchmark(
+			    unzip_imgui_models( models ),
+			    {{"num_threads", std::to_string( num_procs )},
+			     {"warmup_runs", std::to_string( num_warmup_runs )},
+			     {"num_runs", std::to_string( num_runs )},
+			     {"hexagon_profiling", "false"},
+			     {"enable_op_profiling", "false"},
+			     {"disable_nnapi_cpu", atop::util::bool2string( cpu_fallback )},
+			     {"use_hexagon", atop::util::bool2string( delegate_rb == 0 )},
+			     {"use_nnapi", atop::util::bool2string( delegate_rb == 1 )},
+			     {"use_gpu", atop::util::bool2string( delegate_rb == 2 )}},
+			    num_procs );
+			ImGui::End();
+		}
+
+		// TODO: this should change depending on framework used
+		ImGui::Begin( "Benchmark Options" );
+		ImGui::RadioButton( "Hexagon DSP", &delegate_rb, 0 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "GPU", &delegate_rb, 1 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "NNAPI", &delegate_rb, 2 );
+		ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
+		ImGui::InputInt( "Runs", &num_runs );
+		ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
 
 		window.clear();
 		ImGui::SFML::Render( window );

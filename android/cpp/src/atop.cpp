@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <memory>
 #include <regex>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -257,11 +258,6 @@ std::vector<std::string> atop::get_tflite_models()
 
 std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 {
-	// Check benchmark file exists on device
-	// 		framework ->
-	// 			check framework reqs
-	// 			get framework models
-
 	switch( fr )
 	{
 		case atop::Frameworks::mlperf:
@@ -273,4 +269,34 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 			atop::check_tflite_reqs();
 			return atop::get_tflite_models();
 	}
+}
+
+void atop::run_tflite_benchmark(
+    std::vector<std::string> model_paths,
+    std::unordered_map<std::string, std::string> options, int processes )
+{
+	static atop::util::RandomSelector rselect{};
+	std::stringstream base_cmd;
+	base_cmd << "/data/local/tmp/benchmark_model";
+	for( auto&& p: options )
+	{
+		base_cmd << " ";
+		base_cmd << fmt::format( "--{0}={1}", p.first, p.second );
+	}
+
+	std::string base_cmd_str{base_cmd.str()};
+	std::stringstream cmd;
+	cmd << base_cmd_str;
+	for( int i = 0; i < processes; ++i )
+	{
+		cmd << fmt::format( " --graph={0} & ", rselect( model_paths ) );
+		if( i < processes - 1 )
+			cmd << base_cmd_str;
+	}
+
+	cmd << "wait";
+
+	atop::logger::verbose_info(fmt::format("Running tflite benchmark using: {0}", cmd.str()));
+
+	check_adb_shell_output(cmd.str());
 }
