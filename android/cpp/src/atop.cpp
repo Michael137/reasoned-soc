@@ -151,19 +151,17 @@ atop::IoctlDmesgStreamer::IoctlDmesgStreamer()
 std::vector<std::string> const& atop::IoctlDmesgStreamer::more()
 {
 	auto data = process_dmesg_log( check_dmesg_log(), "IOCTL" );
-	std::vector<std::string> new_data;
+	this->latest_data.clear();
 	for( auto it = data.rbegin(); it != data.rend(); ++it )
 	{
 		if( atop::util::extract_time( *it ) > this->latest_ts )
-			new_data.push_back( *it );
+			this->latest_data.push_back( *it );
 		else
 			break;
 	}
 
-	this->latest_data = new_data;
-
 	if( this->latest_data.size() > 0 )
-		this->latest_ts = atop::util::extract_time( this->latest_data.back() );
+		this->latest_ts = atop::util::extract_time( this->latest_data[0] );
 
 	return this->latest_data;
 }
@@ -190,37 +188,45 @@ atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 	std::vector<std::string> eligible;
 	auto data = this->more();
 	if( data.size() == 0 )
+	{
+		std::for_each( this->latest_interactions.begin(),
+		               this->latest_interactions.end(),
+		               [&]( std::pair<std::string, int> p ) { p.second = 0; } );
 		return this->latest_interactions;
-
-	auto most_recent = atop::util::extract_time( data.back() );
-	if( check_full_log )
-		eligible = this->latest_data;
+	}
 	else
 	{
-		for( auto it = data.rbegin(); it != data.rend(); ++it )
+		auto most_recent = atop::util::extract_time( data[0] );
+		if( check_full_log )
+			eligible = this->latest_data;
+		else
 		{
-			if( atop::util::extract_time( *it ) >= ( most_recent - threshold ) )
-				eligible.push_back( *it );
-			else
-				break;
+			for( auto it = data.rbegin(); it != data.rend(); ++it )
+			{
+				if( atop::util::extract_time( *it )
+				    >= ( most_recent - threshold ) )
+					eligible.push_back( *it );
+				else
+					break;
+			}
 		}
-	}
 
-	// Reset
-	for( auto& p: this->latest_interactions )
-		this->latest_interactions[p.first] = 0;
-	// this->latest_interactions.clear();
+		// Reset
+		for( auto& p: this->latest_interactions )
+			this->latest_interactions[p.first] = 0;
+		// this->latest_interactions.clear();
 
-	std::string tag;
-	for( auto& line: eligible )
-	{
-		tag = extract_dmesg_accl_tag( line );
-		if( !tag.empty() )
+		std::string tag;
+		for( auto& line: eligible )
 		{
-			if( this->latest_interactions.find( tag )
-			    == this->latest_interactions.end() )
-				this->latest_interactions.insert( {tag, 0} );
-			this->latest_interactions[tag] += 1;
+			tag = extract_dmesg_accl_tag( line );
+			if( !tag.empty() )
+			{
+				if( this->latest_interactions.find( tag )
+				    == this->latest_interactions.end() )
+					this->latest_interactions.insert( {tag, 0} );
+				this->latest_interactions[tag] += 1;
+			}
 		}
 	}
 

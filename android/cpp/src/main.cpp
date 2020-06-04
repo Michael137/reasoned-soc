@@ -231,8 +231,10 @@ int main( int argc, const char** argv )
 		if( ImGui::Checkbox( "Verbose (stdout)", &VERBOSE ) )
 			atop::logger::verbose_info( "Verbose toggled on" );
 
-		if( ImGui::Button( "Pause" ) )
+		if( ImGui::Button( "Pause" ) ) {
+			atop::logger::verbose_info("Paused data stream");
 			utilization_paused ^= true;
+		}
 
 		ImGui::End();
 

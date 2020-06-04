@@ -57,7 +57,6 @@ double atop::util::extract_time( std::string const& str )
 	                       std::regex_constants::match_continuous ) )
 	{
 		std::string ts_str = match[1].str();
-		atop::util::trim( ts_str );
 
 		return std::stod( ts_str );
 	}
