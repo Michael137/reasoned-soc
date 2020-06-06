@@ -33,4 +33,6 @@ adb reboot-bootloader
 
 ~/platform-tools/fastboot flash boot out/target/product/blueline/boot.img
 
+sleep 2
+
 ~/platform-tools/fastboot reboot
