@@ -32,3 +32,5 @@ m bootimage -j12
 adb reboot-bootloader
 
 ~/platform-tools/fastboot flash boot out/target/product/blueline/boot.img
+
+~/platform-tools/fastboot reboot
