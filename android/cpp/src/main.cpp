@@ -12,6 +12,7 @@
 #include <docopt/docopt.h>
 #include <imgui-SFML.h>
 #include <imgui.h>
+#include <imgui_internal.h>
 #include <spdlog/spdlog.h>
 #include <SFML/Graphics/CircleShape.hpp>
 #include <SFML/Graphics/RenderWindow.hpp>
@@ -323,16 +324,47 @@ int main( int argc, const char** argv )
 			// TODO: populate models
 		}
 
+		// tflite benchmark framework only delegates quantized models to Hexagon
+		// DSPs
+		bool tflite_hexagon_selected
+		    = ( frameworks[static_cast<size_t>( sel_framework )]
+		        == atop::framework2string( atop::Frameworks::tflite ) )
+		      && ( delegate_rb == 0 );
+
 		if( ImGui::ListBoxHeader( "Models" ) )
 		{
 			for( size_t n = 0; n < models.size(); n++ )
 			{
+				bool disable_model = tflite_hexagon_selected
+				                && ( models[n].first.find( "_quant" )
+				                     == std::string::npos );
+
+				if( disable_model )
+				{
+					ImGui::PushItemFlag( ImGuiItemFlags_Disabled, true );
+					ImGui::PushStyleVar( ImGuiStyleVar_Alpha,
+					                     ImGui::GetStyle().Alpha * 0.5f );
+					models[n].second = false;
+				}
+
 				if( ImGui::Selectable( models[n].first.c_str(),
 				                       models[n].second ) )
 					models[n].second ^= true;
+
+				if( disable_model )
+				{
+					ImGui::PopItemFlag();
+					ImGui::PopStyleVar();
+				}
 			}
 
 			ImGui::ListBoxFooter();
+		}
+
+		if( ImGui::Button( "(De-)Select All" ) )
+		{
+			for( size_t n = 0; n < models.size(); n++ )
+				models[n].second ^= true;
 		}
 
 		ImGui::InputInt( "Processes", &num_procs );
