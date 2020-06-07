@@ -1,6 +1,10 @@
+#include <errno.h>
+#include <sys/wait.h>
+
 #include <array>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <memory>
 #include <regex>
 #include <sstream>
@@ -9,14 +13,28 @@
 #include <unordered_map>
 #include <vector>
 
-#include <iostream>
-
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 
 #include "atop.h"
 #include "logger.h"
 #include "util.h"
+
+static inline void handle_system_return( int status,
+                                         bool terminate_on_err = false )
+{
+	if( status < 0 )
+		throw std::runtime_error( fmt::format(
+		    "Error when running system cmd: {0}", std::strerror( errno ) ) );
+
+	if( !WIFEXITED( status ) )
+	{
+		if( terminate_on_err )
+			throw std::runtime_error( "Program exited abnormally: !WIFEXITED" );
+		else
+			atop::logger::warn( "Program exited abnormally: !WIFEXITED" );
+	}
+}
 
 // TODO: check exit code using WEXITSTATUS
 std::vector<std::string> atop::check_console_output( std::string const& cmd )
@@ -91,7 +109,7 @@ void atop::check_reqs()
 	if( !in_adb_root() )
 	{
 		atop::logger::warn( "atop requires adb in root...restarting as root" );
-		std::system( "adb root" );
+		handle_system_return( std::system( "adb root" ) );
 		if( !in_adb_root() )
 			atop::logger::log_and_exit( "Failed to restart adb in root" );
 	}
@@ -272,6 +290,9 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 			atop::check_tflite_reqs();
 			return atop::get_tflite_models();
 	}
+
+	throw std::logic_error( fmt::format( "Framework {0} not supported",
+	                                     atop::framework2string( fr ) ) );
 }
 
 void atop::run_tflite_benchmark(

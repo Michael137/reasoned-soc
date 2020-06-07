@@ -21,3 +21,5 @@ conan.lock
 graph_info.json
 
 *.swp
+
+imgui.ini
