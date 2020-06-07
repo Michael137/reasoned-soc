@@ -336,8 +336,8 @@ int main( int argc, const char** argv )
 			for( size_t n = 0; n < models.size(); n++ )
 			{
 				bool disable_model = tflite_hexagon_selected
-				                && ( models[n].first.find( "_quant" )
-				                     == std::string::npos );
+				                     && ( models[n].first.find( "_quant" )
+				                          == std::string::npos );
 
 				if( disable_model )
 				{
@@ -361,11 +361,13 @@ int main( int argc, const char** argv )
 			ImGui::ListBoxFooter();
 		}
 
-		if( ImGui::Button( "(De-)Select All" ) )
-		{
+		if( ImGui::Button( "Select All" ) )
 			for( size_t n = 0; n < models.size(); n++ )
-				models[n].second ^= true;
-		}
+				models[n].second = true;
+		ImGui::SameLine();
+		if( ImGui::Button( "De-select All" ) )
+			for( size_t n = 0; n < models.size(); n++ )
+				models[n].second = false;
 
 		ImGui::InputInt( "Processes", &num_procs );
 
