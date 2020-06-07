@@ -182,12 +182,12 @@ int main( int argc, const char** argv )
 		               .count()
 		           >= streamer_refresh_rate.count() )
 		{
+			// TODO: measure latency within streamer class
 			auto start = std::chrono::system_clock::now();
 			data       = streamer.interactions( true /* check full log */ );
 			timer_prev = timer_cur;
 			auto end   = std::chrono::system_clock::now();
 
-			// TODO: measure latency within streamer class
 			stream_latency
 			    = static_cast<float>(
 			          std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -226,13 +226,14 @@ int main( int argc, const char** argv )
 		ImGui::RadioButton( "timing", &util_rb, 1 );
 
 		if( ImGui::Checkbox( "Fixed Scaling", &fixed_scale ) )
-			atop::logger::verbose_info( "Fixed scaling toggled on" );
+			atop::logger::verbose_info( "Fixed scaling toggled" );
 		ImGui::SameLine();
 		if( ImGui::Checkbox( "Verbose (stdout)", &VERBOSE ) )
 			atop::logger::verbose_info( "Verbose toggled on" );
 
-		if( ImGui::Button( "Pause" ) ) {
-			atop::logger::verbose_info("Paused data stream");
+		if( ImGui::Button( "Pause" ) )
+		{
+			atop::logger::verbose_info( "Paused data stream" );
 			utilization_paused ^= true;
 		}
 
@@ -257,21 +258,30 @@ int main( int argc, const char** argv )
 
 		auto cur_max = std::max_element( std::begin( interactions ),
 		                                 std::end( interactions ) );
+		auto max_label_sz
+		    = std::max_element(
+		          std::begin( labels ), std::end( labels ),
+		          [&]( std::string const& s1, std::string const& s2 ) {
+			          return s1.size() < s2.size();
+		          } )
+		          ->size();
+
 		for( size_t i = 0; i < interactions.size(); ++i )
 		{
-			double scale = 0.0;
+			double scale   = 0.0;
+			auto cur_label = labels[i];
 			if( fixed_scale )
 			{
-				auto it = max_interactions.find( labels[i] );
+				auto it = max_interactions.find( cur_label );
 				if( it == max_interactions.end() )
-					max_interactions[labels[i]] = interactions[i];
+					max_interactions[cur_label] = interactions[i];
 				int max_
-				    = std::max( max_interactions[labels[i]], interactions[i] );
+				    = std::max( max_interactions[cur_label], interactions[i] );
 
 				scale = static_cast<double>( interactions[i] )
 				        / static_cast<double>( max_ );
 
-				max_interactions[labels[i]] = max_;
+				max_interactions[cur_label] = max_;
 			}
 			else
 			{
@@ -285,11 +295,17 @@ int main( int argc, const char** argv )
 			if( num_ticks > 0.0 )
 				num_ticks = std::max( 1.0, std::floor( num_ticks ) );
 
+			std::stringstream bar_padding{""};
+			auto label_sz = cur_label.size();
+			for( size_t j = 0; j < max_label_sz - label_sz; ++j )
+				bar_padding << ' ';
+
 			std::stringstream ss;
 			for( int j = 0; j < static_cast<int>( num_ticks ); ++j )
 				ss << '#';
-			ImGui::TextUnformatted(
-			    fmt::format( "{0}| {1}", labels[i], ss.str() ).c_str() );
+			ImGui::TextUnformatted( fmt::format( "{0}{1}| {2}", cur_label,
+			                                     bar_padding.str(), ss.str() )
+			                            .c_str() );
 		}
 
 		ImGui::End();

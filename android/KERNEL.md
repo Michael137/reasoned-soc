@@ -75,6 +75,8 @@ Steps are taken from [this SO post](https://android.stackexchange.com/questions/
 12. (Optional) Make sure Qualcomm FastRPC works. Check the `$HEXAGON_SDK/examples/common/rpcperf` example
   - More info in the [../dsp_offload/README.md](../dsp_offload/README.md) directory of this repository
 
+Further `.apk`s can be downloaded from [uptown.com](https://en.uptodown.com/android)
+
 ## Embedding Custom Kernel
 The kernel and AOSP projects are separate. To change the kernel of an AOSP build one has to check out and build the kernel image separately, embed it into the AOSP tree, rebuild the boot image and reflash the device.
 

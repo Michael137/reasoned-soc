@@ -138,10 +138,7 @@ atop::IoctlDmesgStreamer::IoctlDmesgStreamer()
           {"cam_sensor", 0},
           {"v4l2", 0},
           {"IPA", 0},
-          {"aDSP", 0},
-          {"cDSP", 0},
           {"ICE", 0},
-          {"Others", 0},
       } )
 {
 	if( this->latest_data.size() > 0 )
@@ -191,7 +188,7 @@ atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 	{
 		std::for_each( this->latest_interactions.begin(),
 		               this->latest_interactions.end(),
-		               [&]( std::pair<std::string, int> p ) { p.second = 0; } );
+		               [&]( auto& p ) { p.second = 0; } );
 		return this->latest_interactions;
 	}
 	else

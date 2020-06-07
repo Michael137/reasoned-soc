@@ -26,4 +26,6 @@ inline void warn( std::string const& msg ) { spdlog::warn( msg ); }
 } // namespace logger
 } // namespace atop
 
+#define LOG( _msg_ ) atop::logger::verbose_info( _msg_ )
+
 #endif // LOGGER_H_IN
