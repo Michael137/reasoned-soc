@@ -111,7 +111,7 @@
 #define FASTRPC_GLINK_INTENT_NUM  (16)
 
 #define PERF_KEYS \
-	"count:flush:map:copy:glink:getargs:putargs:invalidate:invoke:tid:ptr"
+	"count:flush:map:copy:glink:getargs:putargs:invalidate:invoke:ioctl:ioctl_t:exec_t:tid:ptr"
 #define FASTRPC_STATIC_HANDLE_KERNEL (1)
 #define FASTRPC_STATIC_HANDLE_LISTENER (3)
 #define FASTRPC_STATIC_HANDLE_MAX (20)
@@ -365,7 +365,10 @@ enum fastrpc_perfkeys {
 	PERF_PUTARGS = 6,
 	PERF_INVARGS = 7,
 	PERF_INVOKE = 8,
-	PERF_KEY_MAX = 9,
+	PERF_IOCTL = 9,
+	PERF_IOCTL_TIME = 10,
+	PERF_EXEC_TIME = 11,
+	PERF_KEY_MAX = 12,
 };
 
 struct fastrpc_perf {
@@ -378,6 +381,9 @@ struct fastrpc_perf {
 	int64_t putargs;
 	int64_t invargs;
 	int64_t invoke;
+	int64_t ioctl;
+	int64_t avg_ioctl_t;
+	int64_t avg_exec_t;
 	int64_t tid;
 	struct hlist_node hn;
 };
@@ -1678,16 +1684,19 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 
 		if (rpra && lrpra && rpra[i].buf.len &&
 			ctx->overps[oix]->mstart) {
-			if (map && map->handle)
+			if (map && map->handle) {
 				msm_ion_do_cache_op(ctx->fl->apps->client,
 					map->handle,
 					uint64_to_ptr(rpra[i].buf.pv),
 					rpra[i].buf.len,
 					ION_IOC_CLEAN_INV_CACHES);
-			else
+				printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+			} else {
 				dmac_flush_range(uint64_to_ptr(rpra[i].buf.pv),
 					uint64_to_ptr(rpra[i].buf.pv
 						+ rpra[i].buf.len));
+				printk(KERN_ALERT "DEBUG: flushing cache %s\n", __FUNCTION__);
+			}
 		}
 	}
 	PERF_END);
@@ -1788,30 +1797,36 @@ static void inv_args_pre(struct smq_invoke_ctx *ctx)
 			continue;
 		if (!IS_CACHE_ALIGNED((uintptr_t)
 				uint64_to_ptr(rpra[i].buf.pv))) {
-			if (map && map->handle)
+			if (map && map->handle) {
 				msm_ion_do_cache_op(ctx->fl->apps->client,
 					map->handle,
 					uint64_to_ptr(rpra[i].buf.pv),
 					sizeof(uintptr_t),
 					ION_IOC_CLEAN_INV_CACHES);
-			else
+				printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+			} else {
 				dmac_flush_range(
 					uint64_to_ptr(rpra[i].buf.pv), (char *)
 					uint64_to_ptr(rpra[i].buf.pv + 1));
+				printk(KERN_ALERT "DEBUG: flushing cache %s\n", __FUNCTION__);
+			}
 		}
 
 		end = (uintptr_t)uint64_to_ptr(rpra[i].buf.pv +
 							rpra[i].buf.len);
 		if (!IS_CACHE_ALIGNED(end)) {
-			if (map && map->handle)
+			if (map && map->handle) {
 				msm_ion_do_cache_op(ctx->fl->apps->client,
 						map->handle,
 						uint64_to_ptr(end),
 						sizeof(uintptr_t),
 						ION_IOC_CLEAN_INV_CACHES);
-			else
+				printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+			} else {
 				dmac_flush_range((char *)end,
 					(char *)end + 1);
+				printk(KERN_ALERT "DEBUG: flushing cache %s\n", __FUNCTION__);
+			}
 		}
 	}
 }
@@ -1841,14 +1856,17 @@ static void inv_args(struct smq_invoke_ctx *ctx)
 				buf_page_start(rpra[i].buf.pv)) {
 			continue;
 		}
-		if (map && map->handle)
+		if (map && map->handle) {
 			msm_ion_do_cache_op(ctx->fl->apps->client, map->handle,
 				(char *)uint64_to_ptr(rpra[i].buf.pv),
 				rpra[i].buf.len, ION_IOC_INV_CACHES);
-		else
+			printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+		} else {
 			dmac_inv_range((char *)uint64_to_ptr(rpra[i].buf.pv),
 				(char *)uint64_to_ptr(rpra[i].buf.pv
 						 + rpra[i].buf.len));
+			printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+		}
 	}
 
 }
@@ -1955,6 +1973,17 @@ static void smd_event_handler(void *priv, unsigned int event)
 	}
 }
 
+static char* channel2str(int channel_id)
+{
+	switch(channel_id) {
+		case 0: return "aDSP";
+		case 1: return "mDSP";
+		case 2: return "SLPI";
+		case 3: return "cDSP";
+	}
+	return "";
+}
+
 static char* decode_iowr(unsigned int ioctl_num)
 {
 	unsigned nr = _IOC_NR(ioctl_num);
@@ -2035,7 +2064,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 	struct timespec64 final = {0,0};
 
 	// 137: profile additions
-	fl->profile = 1;
+	// fl->profile = 1;
 	ktime_get_ts64(&start);
 
 	if (fl->profile)
@@ -2058,7 +2087,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		goto bail;
 
 	if (!kernel) {
-		printk(KERN_ALERT "DEBUG: calling context_restore_interrupted (pid: %u) (kernel = %u) [%s %d] \n", current->pid, kernel, __FUNCTION__,__LINE__);
+		printk(KERN_ALERT "DEBUG: calling context_restore_interrupted (perf: %d) (pid: %u) (kernel = %u) [%s %d] \n", fl->profile, current->pid, kernel, __FUNCTION__,__LINE__);
 		VERIFY(err, 0 == context_restore_interrupted(fl, inv,
 								&ctx));
 		if (err)
@@ -2087,9 +2116,12 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		PERF(fl->profile, GET_COUNTER(perf_counter, PERF_INVARGS),
 		inv_args_pre(ctx);
 		PERF_END);
+		printk(KERN_ALERT "DEBUG: invalidate cache (inv_args_pre) called from %s %ld\n",
+			__FUNCTION__, GET_COUNTER(perf_counter, PERF_INVARGS));
 	}
 
 	PERF(fl->profile, GET_COUNTER(perf_counter, PERF_LINK),
+	printk(KERN_ALERT "DEBUG: %s: Application %s sending RPC message to channel %d over device %s\n", __func__, current->comm, cid, ctx->fl->apps->channel[fl->cid].name);
 	VERIFY(err, 0 == fastrpc_invoke_send(ctx, kernel, invoke->handle));
 	PERF_END);
 
@@ -2102,18 +2134,26 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		// 137: TODO is this the actual NN execution time? Or do we need to measure somewhere else to?
 		interrupted = wait_for_completion_interruptible(&ctx->work);
 		VERIFY(err, 0 == (err = interrupted));
-		ktime_get_ts64(&end);
-		final = timespec64_sub(end, start);
-		printk(KERN_ALERT "DEBUG: %s (pid: %u) (interrupted wait for completion)\n",__FUNCTION__, current->pid);
-		printk(KERN_ALERT "TIME: %s (pid: %u) (execution (s): %llu.%0.9u\n",__FUNCTION__,current->pid,(u64)final.tv_sec, (u32)final.tv_nsec);
 		if (err)
 			goto bail;
 	}
+	ktime_get_ts64(&end);
+	final = timespec64_sub(end, start);
+	printk(KERN_ALERT "DEBUG: %s (pid: %u) (interrupted wait for completion)\n",__FUNCTION__, current->pid);
+	printk(KERN_ALERT "TIME: %s (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) (execution (s): %llu.%0.9u\n",__FUNCTION__,current->pid,
+														fl->tgid,
+														fl->cid,
+														fl->sessionid,
+														(u64)final.tv_sec, (u32)final.tv_nsec);
 
-	PERF(fl->profile, GET_COUNTER(perf_counter, PERF_INVARGS),
-	if (!fl->sctx->smmu.coherent)
-		inv_args(ctx);
-	PERF_END);
+	// 137: Actual profiling inconsistency
+	if (!fl->sctx->smmu.coherent) {
+		PERF(fl->profile, GET_COUNTER(perf_counter, PERF_INVARGS),
+			inv_args(ctx);
+		PERF_END);
+		printk(KERN_ALERT "DEBUG: invalidate cache (inv_args) called from %s %ld\n",
+			__FUNCTION__, GET_COUNTER(perf_counter, PERF_INVARGS));
+	}
 
 	VERIFY(err, 0 == (err = ctx->retval));
 	if (err)
@@ -2137,8 +2177,10 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		if (invoke->handle != FASTRPC_STATIC_HANDLE_LISTENER) {
 			int64_t *count = GET_COUNTER(perf_counter, PERF_INVOKE);
 
-			if (count)
+			if (count) {
 				*count += getnstimediff(&invoket);
+				printk(KERN_ALERT "PERF: invoke measured %s %ld\n", __FUNCTION__, *count / 1E9);
+			}
 		}
 		if (invoke->handle > FASTRPC_STATIC_HANDLE_MAX) {
 			int64_t *count = GET_COUNTER(perf_counter, PERF_COUNT);
@@ -3061,6 +3103,8 @@ static int fastrpc_device_release(struct inode *inode, struct file *file)
 			pm_qos_remove_request(&fl->pm_qos_req);
 		if (fl->debugfs_file != NULL)
 			debugfs_remove(fl->debugfs_file);
+
+		printk(KERN_ALERT "DEBUG: %s: releasing %s\n", __func__, fl->apps->channel[fl->cid].name);
 		fastrpc_file_free(fl);
 		file->private_data = NULL;
 	}
@@ -3202,7 +3246,7 @@ static ssize_t fastrpc_debugfs_read(struct file *filp, char __user *buffer,
 	char title[UL_SIZE] = "=========================";
 
 	// 137: profile additions
-	fl->profile = 0;
+	// fl->profile = 0;
 	printk(KERN_ALERT "DEBUG: %s\n",__FUNCTION__);
 
 	fileinfo = kzalloc(DEBUGFS_SIZE, GFP_KERNEL);
@@ -3663,6 +3707,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	p.inv.crc = NULL;
 	spin_lock(&fl->hlock);
 	if (fl->file_close == 1) {
+		printk(KERN_ALERT "DEBUG: adsprpc device released\n");
 		err = EBADF;
 		pr_warn("ADSPRPC: fastrpc_device_release is happening, So not sending any new requests to DSP");
 		spin_unlock(&fl->hlock);
@@ -3670,7 +3715,15 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	}
 	spin_unlock(&fl->hlock);
 
-	printk(KERN_ALERT "IOCTL: %s (pid: %u) (ioctl: %s [%u] )\n",__FUNCTION__, current->pid, decoded, ioctl_num);
+	printk(KERN_ALERT "IOCTL %s: %s (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) (channel: %s) (cmd: %s [%u])\n",
+													channel2str(fl->cid),
+													__FUNCTION__,
+													current->pid,
+													fl->tgid,
+													fl->cid,
+													fl->sessionid,
+													fl->apps->channel[fl->cid].name,
+													decoded, ioctl_num);
 	//printk(KERN_ALERT "DEBUG: %s (fl->profile: %u)\n",__FUNCTION__, fl->profile);
 
 	switch (ioctl_num) {
@@ -3786,13 +3839,17 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 			struct fastrpc_perf *perf = NULL, *fperf = NULL;
 			struct hlist_node *n = NULL;
 
+			printk(KERN_ALERT "PERF (%ld): perf.data != NULL\n", current->pid);
 			mutex_lock(&fl->perf_mutex);
 			hlist_for_each_entry_safe(perf, n, &fl->perf, hn) {
+				printk(KERN_ALERT "PERF SEARCHING %s %ld %ld %ld\n", __FUNCTION__, perf->tid, perf->invoke,perf->flush);
 				if (perf->tid == current->pid) {
 					fperf = perf;
 					break;
 				}
 			}
+			if(fperf != NULL)
+				printk(KERN_ALERT "PERF FOUND %s %ld %ld\n", __FUNCTION__, fperf->invoke,fperf->flush);
 
 			mutex_unlock(&fl->perf_mutex);
 
@@ -3861,7 +3918,11 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	}
 	ktime_get_ts64(&end);
 	final = timespec64_sub(end, start);
-	printk(KERN_ALERT "TIME: %s (pid: %u) %s (ioctl (s): %llu.%0.9u\n",__FUNCTION__, current->pid, decoded, (u64)final.tv_sec, (u32)final.tv_nsec);
+	printk(KERN_ALERT "TIME: %s (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) %s (ioctl (s): %llu.%0.9u\n",__FUNCTION__, current->pid,
+														fl->tgid,
+														fl->cid,
+														fl->sessionid,
+														decoded, (u64)final.tv_sec, (u32)final.tv_nsec);
  bail:
 	return err;
 }
