@@ -5,12 +5,12 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <memory>
 #include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <map>
 #include <vector>
 
 #include <fmt/format.h>
@@ -30,9 +30,11 @@ static inline void handle_system_return( int status,
 	if( !WIFEXITED( status ) )
 	{
 		if( terminate_on_err )
-			throw std::runtime_error( "Program exited abnormally: !WIFEXITED" );
+			throw std::runtime_error( fmt::format(
+			    "Program exited abnormally: !WIFEXITED({0})", status ) );
 		else
-			atop::logger::warn( "Program exited abnormally: !WIFEXITED" );
+			atop::logger::warn( fmt::format(
+			    "Program exited abnormally: !WIFEXITED({0})", status ) );
 	}
 }
 
@@ -183,7 +185,7 @@ std::vector<std::string> const& atop::IoctlDmesgStreamer::more()
 
 static std::string extract_dmesg_accl_tag( std::string const& str )
 {
-	std::regex pattern{R"(IOCTL ([A-Za-z0-9]+):)"};
+	std::regex pattern{R"(IOCTL ([A-Za-z0-9_]+):)"};
 	std::smatch match;
 
 	if( std::regex_search( str, match, pattern ) )
@@ -295,9 +297,9 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 	                                     atop::framework2string( fr ) ) );
 }
 
-void atop::run_tflite_benchmark(
-    std::vector<std::string> model_paths,
-    std::map<std::string, std::string> options, int processes )
+void atop::run_tflite_benchmark( std::vector<std::string> model_paths,
+                                 std::map<std::string, std::string> options,
+                                 int processes )
 {
 	static atop::util::RandomSelector rselect{};
 	std::stringstream base_cmd;
