@@ -6,7 +6,7 @@
 #include <iterator>
 #include <map>
 #include <sstream>
-#include <unordered_map>
+#include <map>
 #include <utility>
 
 #include <docopt/docopt.h>
@@ -145,17 +145,22 @@ int main( int argc, const char** argv )
 	static bool cpu_fallback       = false;
 	static bool fixed_scale        = true;
 
+	// TODO: refresh rate redundant once FIFO is implemented
 	constexpr auto streamer_refresh_rate = 2s;
 	atop::IoctlDmesgStreamer streamer;
 	std::chrono::time_point<std::chrono::system_clock> timer_prev
 	    = std::chrono::system_clock::now();
 	std::chrono::time_point<std::chrono::system_clock> timer_cur;
 
+	// TODO: cpu utilization can be refreshed more often
+	atop::CpuUtilizationStreamer cpu_streamer;
+
 	auto data = streamer.get_interactions();
+	std::map<std::string, double> cpu_data;
 
 	float stream_latency = 0.0;
 
-	static std::unordered_map<std::string, int> max_interactions{};
+	static std::map<std::string, int> max_interactions{};
 
 	atop::logger::verbose_info( "Finished initializtion" );
 
@@ -195,6 +200,13 @@ int main( int argc, const char** argv )
 			              end - start )
 			              .count() )
 			      / 1000;
+
+			// TODO: measure stream CPU latency
+			cpu_data       = cpu_streamer.utilizations();
+
+			// TODO: separate discrete cpu stream vs. floating
+			for(auto&& kv: cpu_data)
+				data[kv.first] = static_cast<int>(kv.second);
 		}
 
 		ImGui::SFML::Update( window, deltaClock.restart() );
@@ -217,11 +229,15 @@ int main( int argc, const char** argv )
 		ImGui::Begin( "Options" );
 
 		// Data source
+		ImGui::Text( "Source:" );
+		ImGui::SameLine();
 		ImGui::RadioButton( "dmesg", &data_src_rb, 0 );
 		ImGui::SameLine();
 		ImGui::RadioButton( "perf", &data_src_rb, 1 );
 
 		// Utilization measure
+		ImGui::Text( "Util. Type:" );
+		ImGui::SameLine();
 		ImGui::RadioButton( "interaction", &util_rb, 0 );
 		ImGui::SameLine();
 		ImGui::RadioButton( "timing", &util_rb, 1 );

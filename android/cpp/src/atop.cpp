@@ -10,7 +10,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 #include <fmt/format.h>
@@ -197,7 +197,7 @@ static std::string extract_dmesg_accl_tag( std::string const& str )
 		return "";
 }
 
-std::unordered_map<std::string, int> const&
+std::map<std::string, int> const&
 atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 {
 	std::vector<std::string> eligible;
@@ -297,7 +297,7 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 
 void atop::run_tflite_benchmark(
     std::vector<std::string> model_paths,
-    std::unordered_map<std::string, std::string> options, int processes )
+    std::map<std::string, std::string> options, int processes )
 {
 	static atop::util::RandomSelector rselect{};
 	std::stringstream base_cmd;
@@ -324,4 +324,88 @@ void atop::run_tflite_benchmark(
 	    fmt::format( "Running tflite benchmark using: {0}", cmd.str() ) );
 
 	check_adb_shell_output( cmd.str() );
+}
+
+static inline bool is_cpu_str( std::string const& line )
+{
+	return line.size() > 4 && line[0] == 'c' && line[1] == 'p' && line[2] == 'u'
+	       && std::isdigit( static_cast<unsigned char>( line[3] ) );
+}
+
+static std::vector<std::vector<uint64_t>> get_proc_stat_cpu_info()
+{
+	auto out     = atop::check_console_output( "adb shell cat /proc/stat" );
+	auto out_end = std::remove_if(
+	    out.begin(), out.end(),
+	    [&]( std::string const& line ) { return !is_cpu_str( line ); } );
+	out.erase( out_end, out.end() );
+
+	std::vector<std::vector<uint64_t>> res;
+	res.reserve( out.size() );
+
+	for( auto&& e: out )
+	{
+		auto split = atop::util::split( e, ' ' );
+		// Ignore the string label of the row (e.g., "cpu0" in "cpu0 123 123..")
+		split.erase( split.begin() );
+
+		res.push_back( {} );
+		for( size_t i = 0; i < split.size(); ++i )
+		{
+			char* end;
+			res.back().push_back( std::strtoull( split[i].c_str(), &end, 10 ) );
+		}
+	}
+
+	return res;
+}
+
+atop::CpuUtilizationStreamer::CpuUtilizationStreamer()
+    : total_tick()
+    , total_tick_old()
+    , idle()
+    , idle_old()
+    , del_total_tick()
+    , del_idle()
+    , latest_utils()
+    , num_cpus( 0 )
+{
+	auto info      = get_proc_stat_cpu_info();
+	auto sz        = info.size();
+	this->num_cpus = static_cast<int>( sz );
+
+	this->idle_old.resize( sz, 0 );
+	this->del_total_tick.resize( sz, 0 );
+	this->del_idle.resize( sz, 0 );
+	this->total_tick.resize( sz, 0 );
+	this->total_tick_old.resize( sz, 0 );
+	this->idle.resize( sz, 0 );
+}
+
+std::map<std::string, double> const&
+atop::CpuUtilizationStreamer::utilizations()
+{
+	auto info = get_proc_stat_cpu_info();
+
+	for( size_t i = 0; i < this->total_tick.size(); ++i )
+	{
+		this->total_tick_old[i] = this->total_tick[i];
+		this->idle_old[i]       = this->idle[i];
+
+		this->total_tick[i] = std::accumulate( info[i].begin(), info[i].end(),
+		                                       static_cast<uint64_t>( 0 ),
+		                                       std::plus<uint64_t>() );
+
+		this->idle[i] = info[i][3];
+
+		this->del_total_tick[i] = this->total_tick[i] - this->total_tick_old[i];
+		this->del_idle[i]       = this->idle[i] - this->idle_old[i];
+
+		this->latest_utils[fmt::format( "cpu{0}", i )]
+		    = ( ( this->del_total_tick[i] - this->del_idle[i] )
+		        / static_cast<double>( this->del_total_tick[i] ) )
+		      * 100;
+	}
+
+	return this->latest_utils;
 }

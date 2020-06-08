@@ -3,7 +3,7 @@
 
 #include <algorithm>
 #include <string>
-#include <unordered_map>
+#include <map>
 #include <vector>
 
 #include <fmt/format.h>
@@ -21,7 +21,7 @@ enum class Frameworks : int
 	SNPE
 };
 
-std::unordered_map<std::string, Frameworks> const frameworks_table
+std::map<std::string, Frameworks> const frameworks_table
     = {{"tflite", Frameworks::tflite},
        {"mlperf", Frameworks::mlperf},
        {"snpe", Frameworks::SNPE}};
@@ -59,7 +59,7 @@ std::vector<std::string> get_models_on_device( Frameworks );
 
 // TODO: use std::variant for options?
 void run_tflite_benchmark( std::vector<std::string> model_paths,
-                           std::unordered_map<std::string, std::string> options,
+                           std::map<std::string, std::string> options,
                            int processes = 1 );
 
 class IoctlDmesgStreamer
@@ -71,19 +71,42 @@ class IoctlDmesgStreamer
 	IoctlDmesgStreamer( IoctlDmesgStreamer&& )      = delete;
 
 	std::vector<std::string> const& get_data() { return this->latest_data; }
-	std::unordered_map<std::string, int> const& get_interactions()
+	std::map<std::string, int> const& get_interactions()
 	{
 		return this->latest_interactions;
 	}
 
 	std::vector<std::string> const& more();
-	std::unordered_map<std::string, int> const&
+	std::map<std::string, int> const&
 	interactions( bool check_full_log = false, double threshold = 20.0 );
 
    private:
 	double latest_ts;
 	std::vector<std::string> latest_data;
-	std::unordered_map<std::string, int> latest_interactions;
+	std::map<std::string, int> latest_interactions;
+};
+
+class CpuUtilizationStreamer
+{
+   public:
+	CpuUtilizationStreamer();
+	~CpuUtilizationStreamer()                               = default;
+	CpuUtilizationStreamer( CpuUtilizationStreamer const& ) = delete;
+	CpuUtilizationStreamer( CpuUtilizationStreamer&& )      = delete;
+
+	std::map<std::string, double> const& utilizations();
+
+   private:
+	std::vector<uint64_t> total_tick;
+	std::vector<uint64_t> total_tick_old;
+	std::vector<uint64_t> idle;
+	std::vector<uint64_t> idle_old;
+	std::vector<uint64_t> del_total_tick;
+	std::vector<uint64_t> del_idle;
+
+	std::map<std::string, double> latest_utils;
+
+	int num_cpus;
 };
 
 } // namespace atop
