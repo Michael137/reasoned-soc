@@ -73,7 +73,7 @@ namespace ctpl {
     public:
 
         thread_pool() { this->init(); }
-        thread_pool(int nThreads) { this->init(); this->resize(nThreads); }
+        explicit thread_pool(int nThreads) { this->init(); this->resize(nThreads); }
 
         // the destructor waits for all the functions in the queue to be finished
         ~thread_pool() {
@@ -81,29 +81,30 @@ namespace ctpl {
         }
 
         // get the number of running threads in the pool
-        int size() { return static_cast<int>(this->threads.size()); }
+        int size() const { return static_cast<int>(this->threads.size()); }
 
         // number of idle threads
-        int n_idle() { return this->nWaiting; }
-        std::thread & get_thread(int i) { return *this->threads[i]; }
+        int n_idle() const { return this->nWaiting; }
+        std::thread & get_thread(int i) { return *this->threads[static_cast<size_t>(i)]; }
 
         // change the number of threads in the pool
         // should be called from one thread, otherwise be careful to not interleave, also with this->stop()
         // nThreads must be >= 0
         void resize(int nThreads) {
             if (!this->isStop && !this->isDone) {
-                int oldNThreads = static_cast<int>(this->threads.size());
-                if (oldNThreads <= nThreads) {  // if the number of threads is increased
-                    this->threads.resize(nThreads);
-                    this->flags.resize(nThreads);
+                size_t oldNThreads = this->threads.size();
+				size_t nThreads_ = static_cast<size_t>(nThreads);
+                if (oldNThreads <= nThreads_) {  // if the number of threads is increased
+                    this->threads.resize(nThreads_);
+                    this->flags.resize(nThreads_);
 
-                    for (int i = oldNThreads; i < nThreads; ++i) {
+                    for (size_t i = oldNThreads; i < nThreads_; ++i) {
                         this->flags[i] = std::make_shared<std::atomic<bool>>(false);
-                        this->set_thread(i);
+                        this->set_thread(static_cast<int>(i));
                     }
                 }
                 else {  // the number of threads is decreased
-                    for (int i = oldNThreads - 1; i >= nThreads; --i) {
+                    for (size_t i = oldNThreads - 1; i >= nThreads_; --i) {
                         *this->flags[i] = true;  // this thread will finish
                         this->threads[i]->detach();
                     }
@@ -112,8 +113,8 @@ namespace ctpl {
                         std::unique_lock<std::mutex> lock(this->mutex);
                         this->cv.notify_all();
                     }
-                    this->threads.resize(nThreads);  // safe to delete because the threads are detached
-                    this->flags.resize(nThreads);  // safe to delete because the threads have copies of shared_ptr of the flags, not originals
+                    this->threads.resize(nThreads_);  // safe to delete because the threads are detached
+                    this->flags.resize(nThreads_);  // safe to delete because the threads have copies of shared_ptr of the flags, not originals
                 }
             }
         }
@@ -144,7 +145,7 @@ namespace ctpl {
                 if (this->isStop)
                     return;
                 this->isStop = true;
-                for (int i = 0, n = this->size(); i < n; ++i) {
+                for (size_t i = 0, n = static_cast<size_t>(this->size()); i < n; ++i) {
                     *this->flags[i] = true;  // command the threads to stop
                 }
                 this->clear_queue();  // empty the queue
@@ -158,7 +159,7 @@ namespace ctpl {
                 std::unique_lock<std::mutex> lock(this->mutex);
                 this->cv.notify_all();  // stop all waiting threads
             }
-            for (int i = 0; i < static_cast<int>(this->threads.size()); ++i) {  // wait for the computing threads to finish
+            for (size_t i = 0; i < this->threads.size(); ++i) {  // wait for the computing threads to finish
                     if (this->threads[i]->joinable())
                         this->threads[i]->join();
             }
@@ -207,7 +208,7 @@ namespace ctpl {
         thread_pool & operator=(thread_pool &&);// = delete;
 
         void set_thread(int i) {
-            std::shared_ptr<std::atomic<bool>> flag(this->flags[i]); // a copy of the shared ptr to the flag
+            std::shared_ptr<std::atomic<bool>> flag(this->flags[static_cast<size_t>(i)]); // a copy of the shared ptr to the flag
             auto f = [this, i, flag/* a copy of the shared ptr to the flag */]() {
                 std::atomic<bool> & _flag = *flag;
                 std::function<void(int id)> * _f;
@@ -230,7 +231,7 @@ namespace ctpl {
                         return;  // if the queue is empty and this->isDone == true or *flag then return
                 }
             };
-            this->threads[i].reset(new std::thread(f)); // compiler may not support std::make_unique()
+            this->threads[static_cast<size_t>(i)].reset(new std::thread(f)); // compiler may not support std::make_unique()
         }
 
         void init() { this->nWaiting = 0; this->isStop = false; this->isDone = false; }

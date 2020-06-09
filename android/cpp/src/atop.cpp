@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <future>
 #include <map>
 #include <memory>
 #include <regex>
@@ -15,6 +16,7 @@
 
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
+#include "ctpl.h"
 
 #include "atop.h"
 #include "logger.h"
@@ -152,13 +154,13 @@ atop::IoctlDmesgStreamer::IoctlDmesgStreamer()
     : latest_ts( 0.0 )
     , latest_data( process_dmesg_log( check_dmesg_log(), "IOCTL" ) )
     , latest_interactions( {
-          {"ardeno", 0},
-          {"kgsl", 0},
-          {"vidioc", 0},
-          {"cam_sensor", 0},
-          {"v4l2", 0},
-          {"IPA", 0},
-          {"ICE", 0},
+          //          {"ardeno", 0},
+          //          {"kgsl", 0},
+          //          {"vidioc", 0},
+          //          {"cam_sensor", 0},
+          //          {"v4l2", 0},
+          //          {"IPA", 0},
+          //          {"ICE", 0},
       } )
 {
 	if( this->latest_data.size() > 0 )
@@ -301,6 +303,11 @@ void atop::run_tflite_benchmark( std::vector<std::string> model_paths,
                                  std::map<std::string, std::string> options,
                                  int processes )
 {
+	// The user is unlikely to spawn more than
+	// 8 threads simultaneously (unless this function
+	// is ever exposed to the command line)
+	static ctpl::thread_pool pool( 8 );
+
 	static atop::util::RandomSelector rselect{};
 	std::stringstream base_cmd;
 	base_cmd << "/data/local/tmp/benchmark_model";
@@ -322,10 +329,28 @@ void atop::run_tflite_benchmark( std::vector<std::string> model_paths,
 
 	cmd << "wait";
 
+	if( pool.n_idle() > 0 )
+	{
+		atop::logger::verbose_info(
+		    fmt::format( "{0}/{1} threads availble in {2} thread pool. "
+		                 "Scheduling new task...",
+		                 pool.n_idle(), pool.size(), __FUNCTION__ ) );
+	}
+	else
+	{
+		atop::logger::verbose_info(
+		    fmt::format( "Capacity of {0} thread pool reached (max: {1}). "
+		                 "Clearing previous threads...",
+		                 __FUNCTION__, pool.size() ) );
+		pool.stop();
+	}
+
 	atop::logger::verbose_info(
 	    fmt::format( "Running tflite benchmark using: {0}", cmd.str() ) );
 
-	check_adb_shell_output( cmd.str() );
+	auto cmd_str = cmd.str();
+	[[maybe_unused]] std::future<void> th_queue
+	    = pool.push( [&cmd_str]( int ) { check_adb_shell_output( cmd_str ); } );
 }
 
 static inline bool is_cpu_str( std::string const& line )

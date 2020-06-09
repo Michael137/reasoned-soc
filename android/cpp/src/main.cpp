@@ -6,7 +6,6 @@
 #include <iterator>
 #include <map>
 #include <sstream>
-#include <map>
 #include <utility>
 
 #include <docopt/docopt.h>
@@ -202,11 +201,11 @@ int main( int argc, const char** argv )
 			      / 1000;
 
 			// TODO: measure stream CPU latency
-			cpu_data       = cpu_streamer.utilizations();
+			cpu_data = cpu_streamer.utilizations();
 
 			// TODO: separate discrete cpu stream vs. floating
-			for(auto&& kv: cpu_data)
-				data[kv.first] = static_cast<int>(kv.second);
+			for( auto&& kv: cpu_data )
+				data[kv.first] = static_cast<int>( kv.second );
 		}
 
 		ImGui::SFML::Update( window, deltaClock.restart() );
@@ -269,62 +268,66 @@ int main( int argc, const char** argv )
 		std::vector<std::string> labels;
 		labels.reserve( data.size() );
 
-		for( auto& p: data )
+		if( data.size() )
 		{
-			labels.push_back( p.first );
-			interactions.push_back( p.second );
-		}
-
-		auto cur_max = std::max_element( std::begin( interactions ),
-		                                 std::end( interactions ) );
-		auto max_label_sz
-		    = std::max_element(
-		          std::begin( labels ), std::end( labels ),
-		          [&]( std::string const& s1, std::string const& s2 ) {
-			          return s1.size() < s2.size();
-		          } )
-		          ->size();
-
-		for( size_t i = 0; i < interactions.size(); ++i )
-		{
-			double scale   = 0.0;
-			auto cur_label = labels[i];
-			if( fixed_scale )
+			for( auto& p: data )
 			{
-				auto it = max_interactions.find( cur_label );
-				if( it == max_interactions.end() )
-					max_interactions[cur_label] = interactions[i];
-				int max_
-				    = std::max( max_interactions[cur_label], interactions[i] );
-
-				scale = static_cast<double>( interactions[i] )
-				        / static_cast<double>( max_ );
-
-				max_interactions[cur_label] = max_;
-			}
-			else
-			{
-				scale = static_cast<double>( interactions[i] )
-				        / static_cast<double>( *cur_max );
+				labels.push_back( p.first );
+				interactions.push_back( p.second );
 			}
 
-			auto num_ticks = ( static_cast<double>( win_width ) * scale
-			                   / font_scale_factor )
-			                 / 8.0; // TODO: handle scaling
-			if( num_ticks > 0.0 )
-				num_ticks = std::max( 1.0, std::floor( num_ticks ) );
+			auto cur_max = std::max_element( std::begin( interactions ),
+			                                 std::end( interactions ) );
+			auto max_label_sz
+			    = std::max_element(
+			          std::begin( labels ), std::end( labels ),
+			          [&]( std::string const& s1, std::string const& s2 ) {
+				          return s1.size() < s2.size();
+			          } )
+			          ->size();
 
-			std::stringstream bar_padding{""};
-			auto label_sz = cur_label.size();
-			for( size_t j = 0; j < max_label_sz - label_sz; ++j )
-				bar_padding << ' ';
+			for( size_t i = 0; i < interactions.size(); ++i )
+			{
+				double scale   = 0.0;
+				auto cur_label = labels[i];
+				if( fixed_scale )
+				{
+					auto it = max_interactions.find( cur_label );
+					if( it == max_interactions.end() )
+						max_interactions[cur_label] = interactions[i];
+					int max_ = std::max( max_interactions[cur_label],
+					                     interactions[i] );
 
-			std::stringstream ss;
-			for( int j = 0; j < static_cast<int>( num_ticks ); ++j )
-				ss << '#';
-			ImGui::TextUnformatted( fmt::format( "{0}{1}| {2}", cur_label,
-			                                     bar_padding.str(), ss.str() )
-			                            .c_str() );
+					scale = static_cast<double>( interactions[i] )
+					        / static_cast<double>( max_ );
+
+					max_interactions[cur_label] = max_;
+				}
+				else
+				{
+					scale = static_cast<double>( interactions[i] )
+					        / static_cast<double>( *cur_max );
+				}
+
+				auto num_ticks = ( static_cast<double>( win_width ) * scale
+				                   / font_scale_factor )
+				                 / 8.0; // TODO: handle scaling
+				if( num_ticks > 0.0 )
+					num_ticks = std::max( 1.0, std::floor( num_ticks ) );
+
+				std::stringstream bar_padding{""};
+				auto label_sz = cur_label.size();
+				for( size_t j = 0; j < max_label_sz - label_sz; ++j )
+					bar_padding << ' ';
+
+				std::stringstream ss;
+				for( int j = 0; j < static_cast<int>( num_ticks ); ++j )
+					ss << '#';
+				ImGui::TextUnformatted( fmt::format( "{0}{1}| {2}", cur_label,
+				                                     bar_padding.str(),
+				                                     ss.str() )
+				                            .c_str() );
+			}
 		}
 
 		ImGui::End();
