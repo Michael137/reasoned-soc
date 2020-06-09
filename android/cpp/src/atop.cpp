@@ -350,7 +350,7 @@ void atop::run_tflite_benchmark( std::vector<std::string> model_paths,
 
 	auto cmd_str = cmd.str();
 	[[maybe_unused]] std::future<void> th_queue
-	    = pool.push( [&cmd_str]( int ) { check_adb_shell_output( cmd_str ); } );
+	    = pool.push( [cmd_str]( int ) { check_adb_shell_output( cmd_str ); } );
 }
 
 static inline bool is_cpu_str( std::string const& line )
