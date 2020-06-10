@@ -299,9 +299,10 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 	                                     atop::framework2string( fr ) ) );
 }
 
-void atop::run_tflite_benchmark( std::vector<std::string> model_paths,
-                                 std::map<std::string, std::string> options,
-                                 int processes )
+std::future<void>
+atop::run_tflite_benchmark( std::vector<std::string> model_paths,
+                            std::map<std::string, std::string> options,
+                            int processes )
 {
 	// The user is unlikely to spawn more than
 	// 8 threads simultaneously (unless this function
@@ -349,8 +350,10 @@ void atop::run_tflite_benchmark( std::vector<std::string> model_paths,
 	    fmt::format( "Running tflite benchmark using: {0}", cmd.str() ) );
 
 	auto cmd_str = cmd.str();
-	[[maybe_unused]] std::future<void> th_queue
+	std::future<void> f
 	    = pool.push( [cmd_str]( int ) { check_adb_shell_output( cmd_str ); } );
+
+	return f;
 }
 
 static inline bool is_cpu_str( std::string const& line )

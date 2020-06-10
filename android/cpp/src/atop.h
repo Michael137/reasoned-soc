@@ -2,8 +2,9 @@
 #define ATOP_H_IN
 
 #include <algorithm>
-#include <string>
+#include <future>
 #include <map>
+#include <string>
 #include <vector>
 
 #include <fmt/format.h>
@@ -58,9 +59,10 @@ std::vector<std::string> get_tflite_models();
 std::vector<std::string> get_models_on_device( Frameworks );
 
 // TODO: use std::variant for options?
-void run_tflite_benchmark( std::vector<std::string> model_paths,
-                           std::map<std::string, std::string> options,
-                           int processes = 1 );
+std::future<void>
+run_tflite_benchmark( std::vector<std::string> model_paths,
+                      std::map<std::string, std::string> options,
+                      int processes = 1 );
 
 class IoctlDmesgStreamer
 {
@@ -77,8 +79,8 @@ class IoctlDmesgStreamer
 	}
 
 	std::vector<std::string> const& more();
-	std::map<std::string, int> const&
-	interactions( bool check_full_log = false, double threshold = 20.0 );
+	std::map<std::string, int> const& interactions( bool check_full_log = false,
+	                                                double threshold = 20.0 );
 
    private:
 	double latest_ts;

@@ -2,9 +2,11 @@
 #include <chrono>
 #include <cstdlib>
 #include <functional>
+#include <future>
 #include <iostream>
 #include <iterator>
 #include <map>
+#include <queue>
 #include <sstream>
 #include <utility>
 
@@ -80,6 +82,13 @@ unzip_imgui_models( std::vector<std::pair<std::string, bool>> const& vec )
 	return res;
 }
 
+// Until is_ready() is in the C++ standard use this to check
+// whether a std::future result is ready
+template<typename R> bool is_ready( std::future<R> const& f )
+{
+	return f.wait_for( std::chrono::seconds( 0 ) ) == std::future_status::ready;
+}
+
 using namespace std::chrono_literals;
 
 static constexpr auto USAGE =
@@ -98,6 +107,119 @@ static constexpr auto VERSION_STRING = "atop - Version 0.1";
 
 bool VERBOSE{false};
 
+// From ImGui Log example
+struct DmesgLog
+{
+	ImGuiTextBuffer Buf;
+	ImGuiTextFilter Filter;
+	ImVector<int> LineOffsets; // Index to lines offset. We maintain this with
+	                           // AddLog() calls.
+	bool AutoScroll;           // Keep scrolling if already at the bottom.
+
+	DmesgLog()
+	{
+		AutoScroll = true;
+		Clear();
+	}
+
+	void Clear()
+	{
+		Buf.clear();
+		LineOffsets.clear();
+		LineOffsets.push_back( 0 );
+	}
+
+	void AddLog( const char* fmt, ... ) IM_FMTARGS( 2 )
+	{
+		int old_size = Buf.size();
+		va_list args;
+		va_start( args, fmt );
+		Buf.appendfv( fmt, args );
+		va_end( args );
+		for( int new_size = Buf.size(); old_size < new_size; old_size++ )
+			if( Buf[old_size] == '\n' )
+				LineOffsets.push_back( old_size + 1 );
+	}
+
+	void Draw( const char* title, bool* p_open = NULL )
+	{
+		if( !ImGui::Begin( title, p_open ) )
+		{
+			ImGui::End();
+			return;
+		}
+
+		// Options menu
+		if( ImGui::BeginPopup( "Options" ) )
+		{
+			ImGui::Checkbox( "Auto-scroll", &AutoScroll );
+			ImGui::EndPopup();
+		}
+
+		// Main window
+		if( ImGui::Button( "Options" ) )
+			ImGui::OpenPopup( "Options" );
+		ImGui::SameLine();
+		bool clear = ImGui::Button( "Clear" );
+		ImGui::SameLine();
+		bool copy = ImGui::Button( "Copy" );
+		ImGui::SameLine();
+		Filter.Draw( "Filter", -150.0f );
+
+		ImGui::Separator();
+		ImGui::BeginChild( "scrolling", ImVec2( 0, 0 ), false,
+		                   ImGuiWindowFlags_HorizontalScrollbar );
+
+		if( clear )
+			Clear();
+		if( copy )
+			ImGui::LogToClipboard();
+
+		ImGui::PushStyleVar( ImGuiStyleVar_ItemSpacing, ImVec2( 0, 0 ) );
+		const char* buf     = Buf.begin();
+		const char* buf_end = Buf.end();
+		if( Filter.IsActive() )
+		{
+			for( int line_no = 0; line_no < LineOffsets.Size; line_no++ )
+			{
+				const char* line_start = buf + LineOffsets[line_no];
+				const char* line_end
+				    = ( line_no + 1 < LineOffsets.Size )
+				          ? ( buf + LineOffsets[line_no + 1] - 1 )
+				          : buf_end;
+				if( Filter.PassFilter( line_start, line_end ) )
+					ImGui::TextUnformatted( line_start, line_end );
+			}
+		}
+		else
+		{
+			ImGuiListClipper clipper;
+			clipper.Begin( LineOffsets.Size );
+			while( clipper.Step() )
+			{
+				for( int line_no = clipper.DisplayStart;
+				     line_no < clipper.DisplayEnd; line_no++ )
+				{
+					const char* line_start = buf + LineOffsets[line_no];
+					const char* line_end
+					    = ( line_no + 1 < LineOffsets.Size )
+					          ? ( buf + LineOffsets[line_no + 1] - 1 )
+					          : buf_end;
+					ImGui::TextUnformatted( line_start, line_end );
+				}
+			}
+			clipper.End();
+		}
+		ImGui::PopStyleVar();
+
+		if( AutoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY() )
+			ImGui::SetScrollHereY( 1.0f );
+
+		ImGui::EndChild();
+		ImGui::End();
+	}
+};
+
 int main( int argc, const char** argv )
 {
 	std::map<std::string, docopt::value> args = docopt::docopt(
@@ -112,7 +234,7 @@ int main( int argc, const char** argv )
 
 	atop::logger::verbose_info( "Starting atop" );
 
-	sf::RenderWindow window( sf::VideoMode( 2560, 1920 ),
+	sf::RenderWindow window( sf::VideoMode( 3400, 2100 ),
 	                         "atop - accelerator viewer" );
 	window.setFramerateLimit( 60 );
 	ImGui::SFML::Init( window );
@@ -143,6 +265,7 @@ int main( int argc, const char** argv )
 	static bool utilization_paused = false;
 	static bool cpu_fallback       = false;
 	static bool fixed_scale        = true;
+	static bool show_log_b         = false;
 
 	// TODO: refresh rate redundant once FIFO is implemented
 	constexpr auto streamer_refresh_rate = 2s;
@@ -161,10 +284,16 @@ int main( int argc, const char** argv )
 
 	static std::map<std::string, int> max_interactions{};
 
-	atop::logger::verbose_info( "Finished initializtion" );
+	static DmesgLog log;
 
 	static bool timer_win_b = true;
+
+	static std::queue<std::future<void>> benchmark_futures_q;
+
 	sf::Clock deltaClock;
+
+	atop::logger::verbose_info( "Finished initialization" );
+
 	while( window.isOpen() )
 	{
 		sf::Event event;
@@ -332,6 +461,14 @@ int main( int argc, const char** argv )
 
 		ImGui::End();
 
+		// TODO: UI feedback that task finished
+		if( benchmark_futures_q.size() > 0
+		    && is_ready<void>( benchmark_futures_q.front() ) )
+		{
+			benchmark_futures_q.pop();
+			atop::logger::verbose_info( "Oldest task finished" );
+		}
+
 		ImGui::Begin( "Workload Simulator" );
 
 		if( ComboBox( "Framework", &sel_framework, frameworks ) )
@@ -392,18 +529,20 @@ int main( int argc, const char** argv )
 
 		if( ImGui::Button( "Run" ) )
 		{
-			atop::run_tflite_benchmark(
+			benchmark_futures_q.emplace( atop::run_tflite_benchmark(
 			    unzip_imgui_models( models ),
 			    {{"num_threads", std::to_string( num_procs )},
 			     {"warmup_runs", std::to_string( num_warmup_runs )},
 			     {"num_runs", std::to_string( num_runs )},
 			     {"hexagon_profiling", "false"},
 			     {"enable_op_profiling", "false"},
-			     {"disable_nnapi_cpu", atop::util::bool2string( cpu_fallback )},
+			     // cpu fallback false => disable nnapi cpu true
+			     {"disable_nnapi_cpu",
+			      atop::util::bool2string( !cpu_fallback )},
 			     {"use_hexagon", atop::util::bool2string( delegate_rb == 0 )},
 			     {"use_gpu", atop::util::bool2string( delegate_rb == 1 )},
 			     {"use_nnapi", atop::util::bool2string( delegate_rb == 2 )}},
-			    num_procs );
+			    num_procs ) );
 			ImGui::End();
 		}
 
@@ -417,6 +556,17 @@ int main( int argc, const char** argv )
 		ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
 		ImGui::InputInt( "Runs", &num_runs );
 		ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
+
+		// TODO: add option to change log to logcat, stdout, etc.
+		ImGui::SetNextWindowSize( ImVec2( 500, 400 ), ImGuiCond_FirstUseEver );
+		ImGui::Begin( "Dmesg Log", &show_log_b );
+		for( auto&& e: streamer.get_data() )
+			log.AddLog( "%s\n", e.c_str() );
+		ImGui::End();
+
+		// Actually call in the regular Log helper (which will Begin() into the
+		// same window as we just did)
+		log.Draw( "Dmesg Log", &show_log_b );
 
 		window.clear();
 		ImGui::SFML::Render( window );
