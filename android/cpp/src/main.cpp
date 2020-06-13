@@ -58,7 +58,7 @@ bool ComboBox( const char* label, int* currIndex,
 }
 
 static std::vector<std::pair<std::string, bool>>
-init_imgui_models_vec( std::vector<std::string> const& models )
+imgui_models_vec( std::vector<std::string> const& models )
 {
 	std::vector<std::pair<std::string, bool>> result;
 	result.reserve( models.size() );
@@ -254,9 +254,8 @@ int main( int argc, const char** argv )
 	// TODO: is models + selected_models a better structure than the embedded
 	// boolean?
 	static std::vector<std::pair<std::string, bool>> models{
-	    init_imgui_models_vec(
-	        atop::get_models_on_device( atop::string2framework(
-	            frameworks[static_cast<size_t>( sel_framework )] ) ) )};
+	    imgui_models_vec( atop::get_models_on_device( atop::string2framework(
+	        frameworks[static_cast<size_t>( sel_framework )] ) ) )};
 
 	static int num_procs       = 1;
 	static int num_runs        = 1;
@@ -463,7 +462,6 @@ int main( int argc, const char** argv )
 
 		ImGui::End();
 
-		// TODO: UI feedback that task finished
 		if( benchmark_futures_q.size() > 0
 		    && is_ready<void>( benchmark_futures_q.front() ) )
 		{
@@ -481,6 +479,9 @@ int main( int argc, const char** argv )
 			    frameworks[static_cast<size_t>( sel_framework )] ) );
 
 			// TODO: populate models
+			models = imgui_models_vec(
+			    atop::get_models_on_device( atop::string2framework(
+			        frameworks[static_cast<size_t>( sel_framework )] ) ) );
 		}
 
 		// tflite benchmark framework only delegates quantized models to Hexagon

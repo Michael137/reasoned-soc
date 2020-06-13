@@ -25,7 +25,7 @@ enum class Frameworks : int
 std::map<std::string, Frameworks> const frameworks_table
     = {{"tflite", Frameworks::tflite},
        {"mlperf", Frameworks::mlperf},
-       {"snpe", Frameworks::SNPE}};
+       {"SNPE", Frameworks::SNPE}};
 
 inline Frameworks string2framework( std::string fr )
 {
@@ -53,9 +53,7 @@ inline std::string framework2string( Frameworks fr )
 }
 
 void check_reqs();
-void check_tflite_reqs();
 std::vector<std::string> check_console_output( std::string const& cmd );
-std::vector<std::string> get_tflite_models();
 std::vector<std::string> get_models_on_device( Frameworks );
 
 // TODO: use std::variant for options?

@@ -264,20 +264,29 @@ static void check_file_exists_on_device( std::string const& pth )
 		    fmt::format( "Path '{0}' doesn't exist on device", pth ) );
 }
 
-void atop::check_tflite_reqs()
+static void check_tflite_reqs()
 {
-	std::string const benchmark_bin = "/data/local/tmp/benchmark_model";
-	check_file_exists_on_device( benchmark_bin );
+	check_file_exists_on_device( "/data/local/tmp/benchmark_model" );
 }
 
-std::vector<std::string> atop::get_tflite_models()
+static void check_snpe_reqs()
 {
-	// TODO: use filesystem lib
+	check_file_exists_on_device( "/data/local/tmp/snpebm/artifacts/"
+	                             "arm-android-clang6.0/bin/snpe-net-run" );
+}
+
+static std::vector<std::string> get_tflite_models()
+{
 	// TODO: create separate directory for tflite benchmark models
-	std::vector<std::string> paths
-	    = check_console_output( "adb shell ls -d /data/local/tmp/*.tflite" );
-	for( auto& p: paths )
-		check_file_exists_on_device( p );
+	std::vector<std::string> paths = atop::check_console_output(
+	    "adb shell ls -d /data/local/tmp/*.tflite" );
+	return paths;
+}
+
+static std::vector<std::string> get_snpe_models()
+{
+	std::vector<std::string> paths = atop::check_console_output(
+	    "adb shell ls -d /data/local/tmp/snpebm/*.dlc" );
 	return paths;
 }
 
@@ -286,13 +295,15 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 	switch( fr )
 	{
 		case atop::Frameworks::mlperf:
-		case atop::Frameworks::SNPE:
 			throw atop::util::NotImplementedException(
 			    fmt::format( "Framework {0} not yet implemented",
 			                 atop::framework2string( fr ) ) );
+		case atop::Frameworks::SNPE:
+			check_snpe_reqs();
+			return get_snpe_models();
 		case atop::Frameworks::tflite:
-			atop::check_tflite_reqs();
-			return atop::get_tflite_models();
+			check_tflite_reqs();
+			return get_tflite_models();
 	}
 
 	throw std::logic_error( fmt::format( "Framework {0} not supported",
@@ -311,8 +322,8 @@ atop::run_tflite_benchmark( std::vector<std::string> model_paths,
 
 	static atop::util::RandomSelector rselect{};
 	std::stringstream base_cmd;
-	// taskset f0: run benchmark on the big cores of big.LITLE ARM CPUs. This reduces variance
-	// 			   between benchmark runs
+	// taskset f0: run benchmark on the big cores of big.LITLE ARM CPUs. This
+	// reduces variance 			   between benchmark runs
 	base_cmd << "taskset f0 /data/local/tmp/benchmark_model";
 	for( auto&& p: options )
 	{
