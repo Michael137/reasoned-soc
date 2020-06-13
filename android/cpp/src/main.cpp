@@ -290,6 +290,8 @@ int main( int argc, const char** argv )
 
 	static std::queue<std::future<void>> benchmark_futures_q;
 
+	static int workloads_running = 0;
+
 	sf::Clock deltaClock;
 
 	atop::logger::verbose_info( "Finished initialization" );
@@ -466,6 +468,7 @@ int main( int argc, const char** argv )
 		    && is_ready<void>( benchmark_futures_q.front() ) )
 		{
 			benchmark_futures_q.pop();
+			workloads_running--;
 			atop::logger::verbose_info( "Oldest task finished" );
 		}
 
@@ -531,20 +534,30 @@ int main( int argc, const char** argv )
 		{
 			benchmark_futures_q.emplace( atop::run_tflite_benchmark(
 			    unzip_imgui_models( models ),
-			    {{"num_threads", std::to_string( num_procs )},
+			    {// {"num_threads", std::to_string( num_procs )},
 			     {"warmup_runs", std::to_string( num_warmup_runs )},
 			     {"num_runs", std::to_string( num_runs )},
 			     {"hexagon_profiling", "false"},
 			     {"enable_op_profiling", "false"},
 			     // cpu fallback false => disable nnapi cpu true
 			     {"disable_nnapi_cpu",
-			      atop::util::bool2string( !cpu_fallback )},
+			      atop::util::bool2string( !cpu_fallback && delegate_rb == 2 )},
 			     {"use_hexagon", atop::util::bool2string( delegate_rb == 0 )},
 			     {"use_gpu", atop::util::bool2string( delegate_rb == 1 )},
 			     {"use_nnapi", atop::util::bool2string( delegate_rb == 2 )}},
 			    num_procs ) );
+
+			workloads_running++;
+
 			ImGui::End();
 		}
+
+		// TODO: warn user if he schedules more thean thread pool size since
+		//       current thread pool queue manager waits for a task to finish
+		//       before removing a task
+		ImGui::SameLine();
+		ImGui::TextUnformatted(
+		    fmt::format( "{0} running", workloads_running ).c_str() );
 
 		// TODO: this should change depending on framework used
 		ImGui::Begin( "Benchmark Options" );
@@ -553,6 +566,8 @@ int main( int argc, const char** argv )
 		ImGui::RadioButton( "GPU", &delegate_rb, 1 );
 		ImGui::SameLine();
 		ImGui::RadioButton( "NNAPI", &delegate_rb, 2 );
+		ImGui::SameLine();
+		ImGui::RadioButton( "CPU Only", &delegate_rb, 3 );
 		ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
 		ImGui::InputInt( "Runs", &num_runs );
 		ImGui::InputInt( "Warmup Runs", &num_warmup_runs );

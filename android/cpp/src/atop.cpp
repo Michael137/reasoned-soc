@@ -311,7 +311,9 @@ atop::run_tflite_benchmark( std::vector<std::string> model_paths,
 
 	static atop::util::RandomSelector rselect{};
 	std::stringstream base_cmd;
-	base_cmd << "/data/local/tmp/benchmark_model";
+	// taskset f0: run benchmark on the big cores of big.LITLE ARM CPUs. This reduces variance
+	// 			   between benchmark runs
+	base_cmd << "taskset f0 /data/local/tmp/benchmark_model";
 	for( auto&& p: options )
 	{
 		base_cmd << " ";
