@@ -58,9 +58,13 @@ std::vector<std::string> get_models_on_device( Frameworks );
 
 // TODO: use std::variant for options?
 std::future<void>
-run_tflite_benchmark( std::vector<std::string> model_paths,
-                      std::map<std::string, std::string> options,
+run_tflite_benchmark( std::vector<std::string> const& model_paths,
+                      std::map<std::string, std::string> const& options,
                       int processes = 1 );
+std::future<void>
+run_snpe_benchmark( std::vector<std::string> const& model_paths,
+                    std::map<std::string, std::string> const& options,
+                    int processes = 1 );
 
 class IoctlDmesgStreamer
 {

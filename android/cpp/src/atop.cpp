@@ -22,6 +22,12 @@
 #include "logger.h"
 #include "util.h"
 
+// Constants
+static const std::string TFLITE_BENCHMARK_BIN
+    = "/data/local/tmp/benchmark_model";
+static const std::string SNPE_BENCHMARK_BIN
+    = "/data/local/tmp/snpebm/artifacts/arm-android-clang6.0/bin/snpe-net-run";
+
 static inline void handle_system_return( int status,
                                          bool terminate_on_err = false )
 {
@@ -266,13 +272,12 @@ static void check_file_exists_on_device( std::string const& pth )
 
 static void check_tflite_reqs()
 {
-	check_file_exists_on_device( "/data/local/tmp/benchmark_model" );
+	check_file_exists_on_device( TFLITE_BENCHMARK_BIN );
 }
 
 static void check_snpe_reqs()
 {
-	check_file_exists_on_device( "/data/local/tmp/snpebm/artifacts/"
-	                             "arm-android-clang6.0/bin/snpe-net-run" );
+	check_file_exists_on_device( SNPE_BENCHMARK_BIN );
 }
 
 static std::vector<std::string> get_tflite_models()
@@ -310,10 +315,13 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 	                                     atop::framework2string( fr ) ) );
 }
 
-std::future<void>
-atop::run_tflite_benchmark( std::vector<std::string> model_paths,
-                            std::map<std::string, std::string> options,
-                            int processes )
+static std::future<void>
+run_benchmark( std::string const& benchmark_bin, fmt::string_view options_fmt,
+               fmt::string_view model_fmt,
+               std::vector<std::string> const& model_paths,
+               std::map<std::string, std::string> const& options, int processes
+
+)
 {
 	// The user is unlikely to spawn more than
 	// 8 threads simultaneously (unless this function
@@ -324,19 +332,20 @@ atop::run_tflite_benchmark( std::vector<std::string> model_paths,
 	std::stringstream base_cmd;
 	// taskset f0: run benchmark on the big cores of big.LITLE ARM CPUs. This
 	// reduces variance between benchmark runs
-	base_cmd << "taskset f0 /data/local/tmp/benchmark_model";
+	base_cmd << "taskset f0 " << benchmark_bin;
 	for( auto&& p: options )
 	{
 		base_cmd << " ";
-		base_cmd << fmt::format( "--{0}={1}", p.first, p.second );
+		base_cmd << fmt::format( options_fmt, p.first, p.second );
 	}
 
 	std::string base_cmd_str{base_cmd.str()};
 	std::stringstream cmd;
+	std::string model_fmt_str = fmt::format( " {0} & ", model_fmt );
 	cmd << base_cmd_str;
 	for( int i = 0; i < processes; ++i )
 	{
-		cmd << fmt::format( " --graph={0} & ", rselect( model_paths ) );
+		cmd << fmt::format( model_fmt_str, rselect( model_paths ) );
 		if( i < processes - 1 )
 			cmd << base_cmd_str;
 	}
@@ -360,13 +369,31 @@ atop::run_tflite_benchmark( std::vector<std::string> model_paths,
 	}
 
 	atop::logger::verbose_info(
-	    fmt::format( "Running tflite benchmark using: {0}", cmd.str() ) );
+	    fmt::format( "Running benchmark using: {0}", cmd.str() ) );
 
 	auto cmd_str = cmd.str();
 	std::future<void> f
 	    = pool.push( [cmd_str]( int ) { check_adb_shell_output( cmd_str ); } );
 
 	return f;
+}
+
+std::future<void>
+atop::run_tflite_benchmark( std::vector<std::string> const& model_paths,
+                            std::map<std::string, std::string> const& options,
+                            int processes )
+{
+	return run_benchmark( TFLITE_BENCHMARK_BIN, "--{0}={1}", "--graph={0}",
+	                      model_paths, options, processes );
+}
+
+std::future<void>
+atop::run_snpe_benchmark( std::vector<std::string> const& model_paths,
+                          std::map<std::string, std::string> const& options,
+                          int processes )
+{
+	return run_benchmark( SNPE_BENCHMARK_BIN, "--{0} {1}", "--container {0}",
+	                      model_paths, options, processes );
 }
 
 static inline bool is_cpu_str( std::string const& line )
