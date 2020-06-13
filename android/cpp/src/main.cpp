@@ -478,7 +478,6 @@ int main( int argc, const char** argv )
 			    "Changed model framework to: {0}",
 			    frameworks[static_cast<size_t>( sel_framework )] ) );
 
-			// TODO: populate models
 			models = imgui_models_vec(
 			    atop::get_models_on_device( atop::string2framework(
 			        frameworks[static_cast<size_t>( sel_framework )] ) ) );
@@ -560,18 +559,37 @@ int main( int argc, const char** argv )
 		ImGui::TextUnformatted(
 		    fmt::format( "{0} running", workloads_running ).c_str() );
 
-		// TODO: this should change depending on framework used
 		ImGui::Begin( "Benchmark Options" );
-		ImGui::RadioButton( "Hexagon DSP", &delegate_rb, 0 );
-		ImGui::SameLine();
-		ImGui::RadioButton( "GPU", &delegate_rb, 1 );
-		ImGui::SameLine();
-		ImGui::RadioButton( "NNAPI", &delegate_rb, 2 );
-		ImGui::SameLine();
-		ImGui::RadioButton( "CPU Only", &delegate_rb, 3 );
-		ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
-		ImGui::InputInt( "Runs", &num_runs );
-		ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
+		switch( atop::string2framework(
+		    frameworks[static_cast<size_t>( sel_framework )] ) )
+		{
+			case atop::Frameworks::tflite:
+				ImGui::RadioButton( "Hexagon DSP", &delegate_rb, 0 );
+				ImGui::SameLine();
+				ImGui::RadioButton( "GPU", &delegate_rb, 1 );
+				ImGui::SameLine();
+				ImGui::RadioButton( "NNAPI", &delegate_rb, 2 );
+				ImGui::SameLine();
+				ImGui::RadioButton( "CPU Only", &delegate_rb, 3 );
+				ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
+				ImGui::InputInt( "Runs", &num_runs );
+				ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
+				break;
+			case atop::Frameworks::SNPE:
+				ImGui::RadioButton( "Hexagon DSP", &delegate_rb, 0 );
+				ImGui::SameLine();
+				ImGui::RadioButton( "GPU", &delegate_rb, 1 );
+				ImGui::SameLine();
+				ImGui::RadioButton( "CPU Only", &delegate_rb, 3 );
+				ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
+				ImGui::InputInt( "Runs", &num_runs );
+				ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
+				break;
+			case atop::Frameworks::mlperf:
+				throw atop::util::NotImplementedException(
+				    "mlperf benchmarks not yet implemented" );
+		}
+		ImGui::End();
 
 		// TODO: add option to change log to logcat, stdout, etc.
 		ImGui::SetNextWindowSize( ImVec2( 500, 400 ), ImGuiCond_FirstUseEver );
