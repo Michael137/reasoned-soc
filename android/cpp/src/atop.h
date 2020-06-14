@@ -15,6 +15,9 @@ extern bool VERBOSE;
 
 namespace atop
 {
+// Type denoting the output of a shell command
+using shell_out_t = std::vector<std::string>;
+
 enum class Frameworks : int
 {
 	tflite = 0,
@@ -53,15 +56,15 @@ inline std::string framework2string( Frameworks fr )
 }
 
 void check_reqs();
-std::vector<std::string> check_console_output( std::string const& cmd );
-std::vector<std::string> get_models_on_device( Frameworks );
+shell_out_t check_console_output( std::string const& cmd );
+shell_out_t get_models_on_device( Frameworks );
 
 // TODO: use std::variant for options?
-std::future<void>
+std::future<shell_out_t>
 run_tflite_benchmark( std::vector<std::string> const& model_paths,
                       std::map<std::string, std::string> const& options,
                       int processes = 1 );
-std::future<void>
+std::future<shell_out_t>
 run_snpe_benchmark( std::vector<std::string> const& model_paths,
                     std::map<std::string, std::string> const& options,
                     int processes = 1 );
@@ -112,6 +115,22 @@ class CpuUtilizationStreamer
 
 	int num_cpus;
 };
+
+struct BenchmarkStats
+{
+	// Latencies in microseconds
+	std::unordered_map<std::string, uint64_t> stats
+	    = {{"preproc", 0},
+	       {"postproc", 0},
+	       {"inference", 0},
+	       {"offload", 0},
+	       // Framework overhead for delegation
+	       {"delegation", 0},
+	       {"init", 0}};
+};
+
+void summarize_benchmark_output( shell_out_t const&, atop::Frameworks,
+                                 BenchmarkStats& );
 
 } // namespace atop
 

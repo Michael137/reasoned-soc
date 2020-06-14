@@ -220,6 +220,20 @@ struct DmesgLog
 	}
 };
 
+static void ShowBenchmarkSummary( bool* popen,
+                                  atop::BenchmarkStats const& stats )
+{
+	ImGui::Begin( "Benchmark Summary", popen );
+	for( auto&& p: stats.stats )
+	{
+		ImGui::TextUnformatted(
+		    fmt::format( "{0}: {1} ms", p.first,
+		                 static_cast<double>( p.second ) / 1.0e3 )
+		        .c_str() );
+	}
+	ImGui::End();
+}
+
 int main( int argc, const char** argv )
 {
 	std::map<std::string, docopt::value> args = docopt::docopt(
@@ -251,20 +265,24 @@ int main( int argc, const char** argv )
 	static int sel_framework                   = 0;
 	static std::vector<std::string> frameworks = {"tflite", "mlperf", "SNPE"};
 
-	// TODO: is models + selected_models a better structure than the embedded
-	// boolean?
+	// TODO: is models + selected_models a better structure than the
+	// embedded boolean?
 	static std::vector<std::pair<std::string, bool>> models{
 	    imgui_models_vec( atop::get_models_on_device( atop::string2framework(
 	        frameworks[static_cast<size_t>( sel_framework )] ) ) )};
 
 	static int num_procs       = 1;
 	static int num_runs        = 1;
+	static int num_cpu_threads = 6; // Snapdragon has 6 CPUs
 	static int num_warmup_runs = 0;
 
 	static bool utilization_paused = false;
 	static bool cpu_fallback       = false;
 	static bool fixed_scale        = true;
 	static bool show_log_b         = false;
+	static bool bench_summary_cb   = true;
+
+	static atop::BenchmarkStats bench_summary;
 
 	// TODO: refresh rate redundant once FIFO is implemented
 	constexpr auto streamer_refresh_rate = 2s;
@@ -287,7 +305,7 @@ int main( int argc, const char** argv )
 
 	static bool timer_win_b = true;
 
-	static std::queue<std::future<void>> benchmark_futures_q;
+	static std::queue<std::future<atop::shell_out_t>> benchmark_futures_q;
 
 	static int workloads_running = 0;
 
@@ -462,9 +480,25 @@ int main( int argc, const char** argv )
 
 		ImGui::End();
 
+		ShowBenchmarkSummary( &bench_summary_cb, bench_summary );
+
 		if( benchmark_futures_q.size() > 0
-		    && is_ready<void>( benchmark_futures_q.front() ) )
+		    && is_ready<atop::shell_out_t>( benchmark_futures_q.front() ) )
 		{
+			if( bench_summary_cb )
+			{
+				atop::shell_out_t benchmark_out
+				    = benchmark_futures_q.front().get();
+
+				// summarize_benchmark(selected_framework, benchmark stats,
+				// benchmark_result)
+				atop::summarize_benchmark_output(
+				    benchmark_out,
+				    atop::string2framework(
+				        frameworks[static_cast<size_t>( sel_framework )] ),
+				    bench_summary );
+			}
+
 			benchmark_futures_q.pop();
 			workloads_running--;
 			atop::logger::verbose_info( "Oldest task finished" );
@@ -482,12 +516,13 @@ int main( int argc, const char** argv )
 			    atop::get_models_on_device( atop::string2framework(
 			        frameworks[static_cast<size_t>( sel_framework )] ) ) );
 
-			// Reset delegate because not all frameworks support all delegates
+			// Reset delegate because not all frameworks support all
+			// delegates
 			delegate_rb = 0;
 		}
 
-		// tflite benchmark framework only delegates quantized models to Hexagon
-		// DSPs
+		// tflite benchmark framework only delegates quantized models to
+		// Hexagon DSPs
 		bool tflite_hexagon_selected
 		    = ( frameworks[static_cast<size_t>( sel_framework )]
 		        == atop::framework2string( atop::Frameworks::tflite ) )
@@ -530,6 +565,8 @@ int main( int argc, const char** argv )
 		if( ImGui::Button( "De-select All" ) )
 			for( size_t n = 0; n < models.size(); n++ )
 				models[n].second = false;
+		ImGui::SameLine();
+		ImGui::Checkbox( "Summarize", &bench_summary_cb );
 
 		ImGui::InputInt( "Processes", &num_procs );
 
@@ -540,9 +577,12 @@ int main( int argc, const char** argv )
 			{
 				case atop::Frameworks::tflite:
 				{
+					// TODO: tflite benchmark tool has undocumented CSV
+					// export flag "profiling_output_csv_file". Requires
+					// enable_op_profiling
 					benchmark_futures_q.emplace( atop::run_tflite_benchmark(
 					    unzip_imgui_models( models ),
-					    {// {"num_threads", std::to_string( num_procs )},
+					    {{"num_threads", std::to_string( num_cpu_threads )},
 					     {"warmup_runs", std::to_string( num_warmup_runs )},
 					     {"num_runs", std::to_string( num_runs )},
 					     {"hexagon_profiling", "false"},
@@ -587,8 +627,8 @@ int main( int argc, const char** argv )
 			ImGui::End();
 		}
 		// TODO: warn user if he schedules more thean thread pool size since
-		//       current thread pool queue manager waits for a task to finish
-		//       before removing a task
+		//       current thread pool queue manager waits for a task to
+		//       finish before removing a task
 		ImGui::SameLine();
 		ImGui::TextUnformatted(
 		    fmt::format( "{0} running", workloads_running ).c_str() );
@@ -608,6 +648,7 @@ int main( int argc, const char** argv )
 				ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
 				ImGui::InputInt( "Runs", &num_runs );
 				ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
+				ImGui::InputInt( "CPU Threads", &num_cpu_threads );
 				break;
 			case atop::Frameworks::SNPE:
 				ImGui::RadioButton( "Hexagon DSP", &delegate_rb, 0 );
@@ -632,8 +673,8 @@ int main( int argc, const char** argv )
 			log.AddLog( "%s\n", e.c_str() );
 		ImGui::End();
 
-		// Actually call in the regular Log helper (which will Begin() into the
-		// same window as we just did)
+		// Actually call in the regular Log helper (which will Begin() into
+		// the same window as we just did)
 		log.Draw( "Dmesg Log", &show_log_b );
 
 		window.clear();

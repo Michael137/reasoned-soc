@@ -47,7 +47,7 @@ static inline void handle_system_return( int status,
 }
 
 // TODO: check exit code using WEXITSTATUS
-std::vector<std::string> atop::check_console_output( std::string const& cmd )
+atop::shell_out_t atop::check_console_output( std::string const& cmd )
 {
 	std::vector<char> buffer( 512 );
 	std::unique_ptr<FILE, decltype( &pclose )> pipe( popen( cmd.c_str(), "r" ),
@@ -130,12 +130,12 @@ void atop::check_reqs()
 	// TODO: check adb write permissions
 }
 
-static std::vector<std::string> check_adb_shell_output( std::string const& cmd )
+static atop::shell_out_t check_adb_shell_output( std::string const& cmd )
 {
 	return atop::check_console_output( fmt::format( "adb shell \"{}\"", cmd ) );
 }
 
-static std::vector<std::string> check_dmesg_log()
+static atop::shell_out_t check_dmesg_log()
 {
 	return check_adb_shell_output( "dmesg" );
 }
@@ -315,12 +315,13 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 	                                     atop::framework2string( fr ) ) );
 }
 
-static std::future<void> run_benchmark(
+static std::future<atop::shell_out_t> run_benchmark(
     std::string const& benchmark_bin, fmt::string_view options_fmt,
     fmt::string_view model_fmt, std::vector<std::string> const& model_paths,
     std::map<std::string, std::string> const& options, int processes,
     std::string const& prefix                                   = "",
-    std::function<std::string( std::string const& )> suffix_gen = nullptr )
+    std::function<std::string( std::string const& )> suffix_gen = nullptr,
+    std::function<atop::shell_out_t( void )> run_after_cb       = nullptr )
 {
 	// The user is unlikely to spawn more than
 	// 8 threads simultaneously (unless this function
@@ -377,13 +378,19 @@ static std::future<void> run_benchmark(
 	    fmt::format( "Running benchmark using: {0}", cmd.str() ) );
 
 	auto cmd_str = cmd.str();
-	std::future<void> f
-	    = pool.push( [cmd_str]( int ) { check_adb_shell_output( cmd_str ); } );
+	std::future<atop::shell_out_t> f
+	    = pool.push( [cmd_str, run_after_cb]( int ) {
+		      auto out = check_adb_shell_output( cmd_str );
+		      if( run_after_cb != nullptr )
+			      return run_after_cb();
+		      else
+			      return out;
+	      } );
 
 	return f;
 }
 
-std::future<void>
+std::future<atop::shell_out_t>
 atop::run_tflite_benchmark( std::vector<std::string> const& model_paths,
                             std::map<std::string, std::string> const& options,
                             int processes )
@@ -392,7 +399,7 @@ atop::run_tflite_benchmark( std::vector<std::string> const& model_paths,
 	                      model_paths, options, processes );
 }
 
-std::future<void>
+std::future<atop::shell_out_t>
 atop::run_snpe_benchmark( std::vector<std::string> const& model_paths,
                           std::map<std::string, std::string> const& options,
                           int processes )
@@ -410,8 +417,9 @@ atop::run_snpe_benchmark( std::vector<std::string> const& model_paths,
 	return run_benchmark(
 	    SNPE_BENCHMARK_BIN, "--{0} {1}", "--container {0}", model_paths,
 	    options, processes, prefix, []( std::string const& model ) {
-		    return fmt::format( "--input_list {0}/target_raw_list.txt --output {0}/output",
-		                        atop::util::basepath( model ) );
+		    return fmt::format(
+		        "--input_list {0}/target_raw_list.txt --output {0}/output",
+		        atop::util::basepath( model ) );
 	    } );
 }
 
@@ -498,4 +506,80 @@ atop::CpuUtilizationStreamer::utilizations()
 	}
 
 	return this->latest_utils;
+}
+
+static void summarize_tflite_benchmark_output( atop::shell_out_t const& out,
+                                               atop::BenchmarkStats& stats )
+{
+	char* end;
+	for( auto& line: out )
+	{
+		if( line.rfind( "PRE-PROCESSING", 0 ) == 0 )
+		{
+			stats.stats["preproc"] = strtoull(
+			    atop::util::split( line, ' ' )[1].c_str(), &end, 10 );
+		}
+		if( line.rfind( "Inference timings in us", 0 ) == 0 )
+		{
+			// Extract "Init" and "Inference (avg)" results
+			std::regex pattern{
+			    R"(Init: ([0-9]+)([0-9a-zA-Z:\s,\(\)].*)Inference \(avg\): ([0-9]+))"};
+			std::smatch match;
+
+			if( std::regex_search( line, match, pattern ) )
+			{
+				stats.stats["init"]
+				    = strtoull( match[1].str().c_str(), &end, 10 );
+				stats.stats["inference"]
+				    = strtoull( match[3].str().c_str(), &end, 10 );
+			}
+		}
+	}
+}
+
+static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
+                                             atop::BenchmarkStats& stats )
+{
+	char* end;
+	for( auto& line: out )
+	{
+		if( line.rfind( "PRE-PROCESSING", 0 ) == 0 )
+		{
+			stats.stats["preproc"] = strtoull(
+			    atop::util::split( line, ' ' )[1].c_str(), &end, 10 );
+		}
+		if( line.rfind( "Inference timings in us", 0 ) == 0 )
+		{
+			// Extract "Init" and "Inference (avg)" results
+			std::regex pattern{
+			    R"(Init: ([0-9]+)([0-9a-zA-Z:\s,\(\)].*)Inference \(avg\): ([0-9]+))"};
+			std::smatch match;
+
+			if( std::regex_search( line, match, pattern ) )
+			{
+				stats.stats["init"]
+				    = strtoull( match[1].str().c_str(), &end, 10 );
+				stats.stats["inference"]
+				    = strtoull( match[3].str().c_str(), &end, 10 );
+			}
+		}
+	}
+}
+
+void atop::summarize_benchmark_output( shell_out_t const& out,
+                                       atop::Frameworks fr,
+                                       atop::BenchmarkStats& stats )
+{
+	switch( fr )
+	{
+		case atop::Frameworks::tflite:
+			summarize_tflite_benchmark_output( out, stats );
+			break;
+		case atop::Frameworks::SNPE:
+			summarize_snpe_benchmark_output( out, stats );
+			break;
+		case atop::Frameworks::mlperf:
+			throw atop::util::NotImplementedException(
+			    "Framework mlperf not yet implemented" );
+	};
 }
