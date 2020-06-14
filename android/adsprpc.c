@@ -3715,15 +3715,15 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	}
 	spin_unlock(&fl->hlock);
 
-	printk(KERN_ALERT "IOCTL %s: %s (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) (channel: %s) (cmd: %s [%u])\n",
+	printk(KERN_ALERT "IOCTL %s: (channel: %s) (app: %s) (cmd: %s [%u]) (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) \n",
 													channel2str(fl->cid),
-													__FUNCTION__,
+													fl->apps->channel[fl->cid].name,
+													current->comm,
+													decoded, ioctl_num,
 													current->pid,
 													fl->tgid,
 													fl->cid,
-													fl->sessionid,
-													fl->apps->channel[fl->cid].name,
-													decoded, ioctl_num);
+													fl->sessionid);
 	//printk(KERN_ALERT "DEBUG: %s (fl->profile: %u)\n",__FUNCTION__, fl->profile);
 
 	switch (ioctl_num) {
