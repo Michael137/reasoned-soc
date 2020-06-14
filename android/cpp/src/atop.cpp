@@ -291,7 +291,7 @@ static std::vector<std::string> get_tflite_models()
 static std::vector<std::string> get_snpe_models()
 {
 	std::vector<std::string> paths = atop::check_console_output(
-	    "adb shell ls -d /data/local/tmp/snpebm/*.dlc" );
+	    "adb shell find /data/local/tmp/snpebm/models -name \"*.dlc\"" );
 	return paths;
 }
 
@@ -315,13 +315,12 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 	                                     atop::framework2string( fr ) ) );
 }
 
-static std::future<void>
-run_benchmark( std::string const& benchmark_bin, fmt::string_view options_fmt,
-               fmt::string_view model_fmt,
-               std::vector<std::string> const& model_paths,
-               std::map<std::string, std::string> const& options, int processes
-
-)
+static std::future<void> run_benchmark(
+    std::string const& benchmark_bin, fmt::string_view options_fmt,
+    fmt::string_view model_fmt, std::vector<std::string> const& model_paths,
+    std::map<std::string, std::string> const& options, int processes,
+    std::string const& prefix                                   = "",
+    std::function<std::string( std::string const& )> suffix_gen = nullptr )
 {
 	// The user is unlikely to spawn more than
 	// 8 threads simultaneously (unless this function
@@ -332,7 +331,8 @@ run_benchmark( std::string const& benchmark_bin, fmt::string_view options_fmt,
 	std::stringstream base_cmd;
 	// taskset f0: run benchmark on the big cores of big.LITLE ARM CPUs. This
 	// reduces variance between benchmark runs
-	base_cmd << "taskset f0 " << benchmark_bin;
+	base_cmd << prefix << ( ( prefix.empty() ) ? "" : ";" ) << " taskset f0 "
+	         << benchmark_bin;
 	for( auto&& p: options )
 	{
 		base_cmd << " ";
@@ -345,7 +345,12 @@ run_benchmark( std::string const& benchmark_bin, fmt::string_view options_fmt,
 	cmd << base_cmd_str;
 	for( int i = 0; i < processes; ++i )
 	{
-		cmd << fmt::format( model_fmt_str, rselect( model_paths ) );
+		auto model = rselect( model_paths );
+		if( suffix_gen != nullptr )
+			cmd << " " << suffix_gen( model ) << " ";
+
+		cmd << fmt::format( model_fmt_str, model );
+
 		if( i < processes - 1 )
 			cmd << base_cmd_str;
 	}
@@ -392,8 +397,22 @@ atop::run_snpe_benchmark( std::vector<std::string> const& model_paths,
                           std::map<std::string, std::string> const& options,
                           int processes )
 {
-	return run_benchmark( SNPE_BENCHMARK_BIN, "--{0} {1}", "--container {0}",
-	                      model_paths, options, processes );
+	// Awkward ADSP_LIBRARY_PATH because paths need to be
+	// separated by ";" instead of the usual ":"
+	std::string prefix
+	    = "export LD_LIBRARY_PATH=/data/local/tmp/snpebm/artifacts/"
+	      "arm-android-clang6.0/lib:$LD_LIBRARY_PATH"
+	      ";"
+	      "export ADSP_LIBRARY_PATH=\\\"/data/local/tmp/snpebm/artifacts/"
+	      "arm-android-clang6.0/lib/../../dsp/lib;/system/lib/rfsa/adsp;"
+	      "/usr/lib/rfsa/adsp;/system/vendor/lib/rfsa/adsp;"
+	      "/dsp;/etc/images/dsp;\\\"";
+	return run_benchmark(
+	    SNPE_BENCHMARK_BIN, "--{0} {1}", "--container {0}", model_paths,
+	    options, processes, prefix, []( std::string const& model ) {
+		    return fmt::format( "--input_list {0}/target_raw_list.txt --output {0}/output",
+		                        atop::util::basepath( model ) );
+	    } );
 }
 
 static inline bool is_cpu_str( std::string const& line )
@@ -416,7 +435,8 @@ static std::vector<std::vector<uint64_t>> get_proc_stat_cpu_info()
 	for( auto&& e: out )
 	{
 		auto split = atop::util::split( e, ' ' );
-		// Ignore the string label of the row (e.g., "cpu0" in "cpu0 123 123..")
+		// Ignore the string label of the row (e.g., "cpu0" in "cpu0 123
+		// 123..")
 		split.erase( split.begin() );
 
 		res.push_back( {} );

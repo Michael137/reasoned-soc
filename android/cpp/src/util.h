@@ -12,6 +12,7 @@ namespace util
 void ltrim( std::string& s );
 void rtrim( std::string& s );
 void trim( std::string& s );
+std::string basepath( std::string const& file_path );
 
 std::vector<std::string> split( const std::string&, char delimiter );
 

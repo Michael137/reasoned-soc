@@ -481,6 +481,9 @@ int main( int argc, const char** argv )
 			models = imgui_models_vec(
 			    atop::get_models_on_device( atop::string2framework(
 			        frameworks[static_cast<size_t>( sel_framework )] ) ) );
+
+			// Reset delegate because not all frameworks support all delegates
+			delegate_rb = 0;
 		}
 
 		// tflite benchmark framework only delegates quantized models to Hexagon
@@ -532,26 +535,57 @@ int main( int argc, const char** argv )
 
 		if( ImGui::Button( "Run" ) )
 		{
-			benchmark_futures_q.emplace( atop::run_tflite_benchmark(
-			    unzip_imgui_models( models ),
-			    {// {"num_threads", std::to_string( num_procs )},
-			     {"warmup_runs", std::to_string( num_warmup_runs )},
-			     {"num_runs", std::to_string( num_runs )},
-			     {"hexagon_profiling", "false"},
-			     {"enable_op_profiling", "false"},
-			     // cpu fallback false => disable nnapi cpu true
-			     {"disable_nnapi_cpu",
-			      atop::util::bool2string( !cpu_fallback && delegate_rb == 2 )},
-			     {"use_hexagon", atop::util::bool2string( delegate_rb == 0 )},
-			     {"use_gpu", atop::util::bool2string( delegate_rb == 1 )},
-			     {"use_nnapi", atop::util::bool2string( delegate_rb == 2 )}},
-			    num_procs ) );
+			switch( atop::string2framework(
+			    frameworks[static_cast<size_t>( sel_framework )] ) )
+			{
+				case atop::Frameworks::tflite:
+				{
+					benchmark_futures_q.emplace( atop::run_tflite_benchmark(
+					    unzip_imgui_models( models ),
+					    {// {"num_threads", std::to_string( num_procs )},
+					     {"warmup_runs", std::to_string( num_warmup_runs )},
+					     {"num_runs", std::to_string( num_runs )},
+					     {"hexagon_profiling", "false"},
+					     {"enable_op_profiling", "false"},
+					     // cpu fallback false => disable nnapi cpu true
+					     {"disable_nnapi_cpu",
+					      atop::util::bool2string( !cpu_fallback
+					                               && delegate_rb == 2 )},
+					     {"use_hexagon",
+					      atop::util::bool2string( delegate_rb == 0 )},
+					     {"use_gpu",
+					      atop::util::bool2string( delegate_rb == 1 )},
+					     {"use_nnapi",
+					      atop::util::bool2string( delegate_rb == 2 )}},
+					    num_procs ) );
+				}
+				break;
+				case atop::Frameworks::SNPE:
+				{
+					std::map<std::string, std::string> opts
+					    = {{"profiling_level", "detailed"},
+					       {"perf_profile", "high_performance"}};
+					if( delegate_rb == 0 )
+						opts.insert( {"use_dsp", ""} );
+					else if( delegate_rb == 1 )
+						opts.insert( {"use_gpu", ""} );
+
+					if( cpu_fallback )
+						opts.insert( {"enable_cpu_fallback", ""} );
+
+					benchmark_futures_q.emplace( atop::run_snpe_benchmark(
+					    unzip_imgui_models( models ), opts, num_procs ) );
+				}
+				break;
+				case atop::Frameworks::mlperf:
+					throw atop::util::NotImplementedException(
+					    "mlperf benchmarks not yet implemented" );
+			};
 
 			workloads_running++;
 
 			ImGui::End();
 		}
-
 		// TODO: warn user if he schedules more thean thread pool size since
 		//       current thread pool queue manager waits for a task to finish
 		//       before removing a task

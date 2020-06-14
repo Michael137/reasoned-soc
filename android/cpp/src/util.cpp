@@ -63,3 +63,14 @@ double atop::util::extract_time( std::string const& str )
 		throw std::runtime_error(
 		    "Error during log line parsing: no timestamp found" );
 }
+
+std::string atop::util::basepath( std::string const& file_path )
+{
+	char sep = '/';
+
+	size_t i = file_path.rfind( sep, file_path.length() );
+	if( i != std::string::npos )
+		return ( file_path.substr( 0, i ) );
+
+	return "";
+}
