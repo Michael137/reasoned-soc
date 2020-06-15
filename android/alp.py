@@ -320,8 +320,8 @@ DEFAULT_TFLITE_BENCH_OPTS = { 'num_threads'          : 1,
                               'enable_op_profiling'  : 'false',
                               'use_hexagon'          : 'false',      
                               'use_nnapi'            : 'false',
-                              'use_gpu'              : 'false' }
-#                              'disable_nnapi_cpu'    : 'false' 
+                              'use_gpu'              : 'false',
+                              'disable_nnapi_cpu'    : 'true' }
 def run_tflite_bench_random(model_path_pool: List[str],
                             bench_options: Dict[str, Union[str,int]] = {},
                             num_proc = 4) -> Dict[str, float]:

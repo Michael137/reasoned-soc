@@ -248,13 +248,15 @@ int main( int argc, const char** argv )
 
 	atop::logger::verbose_info( "Starting atop" );
 
-	sf::RenderWindow window( sf::VideoMode( 3400, 2100 ),
-	                         "atop - accelerator viewer" );
+	sf::RenderWindow window(
+	    sf::VideoMode( sf::VideoMode::getDesktopMode().width,
+	                   sf::VideoMode::getDesktopMode().height ),
+	    "atop - accelerator viewer" );
 	window.setFramerateLimit( 60 );
 	ImGui::SFML::Init( window );
 
 	constexpr auto window_scale_factor = 1.0;
-	constexpr auto font_scale_factor   = 3.0;
+	constexpr auto font_scale_factor   = 1.0;
 	ImGui::GetStyle().ScaleAllSizes( window_scale_factor );
 	ImGui::GetIO().FontGlobalScale = font_scale_factor;
 
