@@ -607,6 +607,8 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 	// SNPE Stats
 	std::map<std::string, uint64_t> snpe_stats;
 
+	unsigned header_cnt = 0;
+
 	for( auto&& line: out )
 	{
 		// Assuming the result sections are ordered as:
@@ -618,11 +620,15 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 		    == 0 )
 		{
 			start_parsing = true;
+			header_cnt++;
 			continue;
 		}
 
 		if( line.rfind( "Layer Times", 0 ) == 0 )
-			break;
+		{
+			start_parsing = false;
+			continue;
+		}
 
 		if( start_parsing )
 		{
@@ -631,10 +637,20 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 			std::smatch match;
 
 			if( std::regex_search( line, match, pattern ) )
-				snpe_stats[match[1]]
-				    = strtoull( match[2].str().c_str(), &end, 10 );
+			{
+				uint64_t val = strtoull( match[2].str().c_str(), &end, 10 );
+				if( auto it{snpe_stats.find( match[1] )};
+				    it != std::end( snpe_stats ) )
+					( *it ).second += val;
+				else
+					snpe_stats.insert(
+					    std::pair<std::string, uint64_t>( match[1], val ) );
+			}
 		}
 	}
+
+	for( auto& e: snpe_stats )
+		e.second = e.second / header_cnt;
 
 	// SNPE workloads are already pre-processed
 	stats.stats["preproc"] = 0;
