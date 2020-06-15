@@ -421,16 +421,6 @@ atop::run_tflite_benchmark( std::vector<std::string> const& model_paths,
 	                      model_paths, options, processes );
 }
 
-template<typename T>
-std::vector<T> concat_vec( std::vector<T>&& lhs, std::vector<T>&& rhs )
-{
-	if( lhs.empty() )
-		return std::move( rhs );
-	lhs.insert( lhs.cend(), std::make_move_iterator( rhs.begin() ),
-	            std::make_move_iterator( rhs.end() ) );
-	return std::move( lhs );
-}
-
 static atop::shell_out_t
 get_snpe_diagview_output( std::string const& model_path )
 {
@@ -442,11 +432,14 @@ get_snpe_diagview_output( std::string const& model_path )
 	atop::shell_out_t out;
 	for( auto&& file: log_files )
 	{
-		out = concat_vec( std::move( out ),
-		                  atop::check_console_output( fmt::format(
-		                      "adb shell cat {0} > /tmp/diag.log && "
-		                      "snpe-diagview --input_log /tmp/diag.log",
-		                      file.c_str() ) ) );
+		auto more = atop::check_console_output(
+		    fmt::format( "adb shell cat {0} > /tmp/diag.log && "
+		                 "snpe-diagview --input_log /tmp/diag.log",
+		                 file.c_str() ) );
+
+		// Append to output vector
+		out.insert( out.end(), std::make_move_iterator( more.begin() ),
+		            std::make_move_iterator( more.end() ) );
 	}
 
 	return out;

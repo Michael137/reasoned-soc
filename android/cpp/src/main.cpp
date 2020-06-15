@@ -256,7 +256,7 @@ int main( int argc, const char** argv )
 	ImGui::SFML::Init( window );
 
 	constexpr auto window_scale_factor = 1.0;
-	constexpr auto font_scale_factor   = 1.0;
+	constexpr auto font_scale_factor   = 3.0;
 	ImGui::GetStyle().ScaleAllSizes( window_scale_factor );
 	ImGui::GetIO().FontGlobalScale = font_scale_factor;
 
