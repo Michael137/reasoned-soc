@@ -2139,8 +2139,10 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 	}
 	ktime_get_ts64(&end);
 	final = timespec64_sub(end, start);
-	printk(KERN_ALERT "DEBUG: %s (pid: %u) (interrupted wait for completion)\n",__FUNCTION__, current->pid);
-	printk(KERN_ALERT "TIME: %s (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) (execution (s): %llu.%0.9u\n",__FUNCTION__,current->pid,
+	printk(KERN_ALERT "TIME internal_invoke: (channel: %s) (app: %s) (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) (execution (s): %llu.%0.9u\n",
+														fl->apps->channel[fl->cid].name,
+														current->comm,
+														current->pid,
 														fl->tgid,
 														fl->cid,
 														fl->sessionid,
@@ -3918,7 +3920,10 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	}
 	ktime_get_ts64(&end);
 	final = timespec64_sub(end, start);
-	printk(KERN_ALERT "TIME: %s (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) %s (ioctl (s): %llu.%0.9u\n",__FUNCTION__, current->pid,
+	printk(KERN_ALERT "TIME ioctl: (channel: %s) (app: %s) (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) %s (ioctl (s): %llu.%0.9u\n",
+														fl->apps->channel[fl->cid].name,
+														current->comm,
+														current->pid,
 														fl->tgid,
 														fl->cid,
 														fl->sessionid,
