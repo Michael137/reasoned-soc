@@ -143,53 +143,93 @@ static atop::shell_out_t check_dmesg_log()
 	return check_adb_shell_output( "dmesg" );
 }
 
-static std::vector<std::string>
-process_dmesg_log( std::vector<std::string> const& log,
-                   std::string const& probe )
+// Zip turns
+//
+// { "PROBE 1 ....",
+//   "PROBE 2 ....",
+//   "PROBE 1 ....",
+//   "PROBE 2 ....",
+//   "PROBE 2 ...." }
+//
+// into
+//
+// {{ "PROBE 1 ....",
+//    "PROBE 1 ...." },
+//  { "PROBE 2 ....",
+//    "PROBE 2 ....",
+//    "PROBE 2 ...." }
+//    TODO: log can be &&
+static atop::ioctl_dmesg_t
+process_and_zip_dmesg_log( atop::shell_out_t&& log,
+                           std::vector<std::string> const& probes )
 {
-	std::vector<std::string> results;
+	// Match dmesg timestamp followed by probe
+	std::string probes_regex
+	    = std::accumulate( std::next( probes.begin() ), probes.end(), probes[0],
+	                       []( std::string const& a, std::string const& b ) {
+		                       return a + "|" + b;
+	                       } );
+	std::string regex_str = std::string( R"(\[[0-9\.\s]+\]\s+)" ) + "("
+	                        + probes_regex.c_str() + ")";
+
+	std::regex pattern{regex_str};
+	std::smatch match;
+	atop::ioctl_dmesg_t results;
 	for( auto& line: log )
 	{
-		if( line.find( probe ) == std::string::npos )
-			continue;
-
-		results.emplace_back( line );
+		if( std::regex_search( line, match, pattern ) )
+		{
+			results[PROBE_IDX( atop::string2dmesgProbes( match[1].str() ) )]
+			    .emplace_back( line );
+		}
 	}
 
 	return results;
 }
 
-atop::IoctlDmesgStreamer::IoctlDmesgStreamer()
-    : latest_ts( 0.0 )
-    , latest_data( process_dmesg_log( check_dmesg_log(), "IOCTL" ) )
-    , latest_interactions( {
-          //          {"ardeno", 0},
-          //          {"kgsl", 0},
-          //          {"vidioc", 0},
-          //          {"cam_sensor", 0},
-          //          {"v4l2", 0},
-          //          {"IPA", 0},
-          //          {"ICE", 0},
-      } )
+atop::IoctlDmesgStreamer::IoctlDmesgStreamer(
+    std::vector<std::string> const& probes )
+    : utilization_probe( atop::DmesgProbes::IOCTL )
+    , latest_ts( 0.0 )
+    , latest_data( process_and_zip_dmesg_log( check_dmesg_log(), probes ) )
+    , latest_interactions( {} )
+    , probes( probes )
 {
-	if( this->latest_data.size() > 0 )
-		this->latest_ts = atop::util::extract_time( this->latest_data.back() );
+	std::vector<double> max_tses;
+	max_tses.reserve( this->latest_data.size() );
+	for( size_t i = 0; i < this->latest_data.size(); ++i )
+		if( this->latest_data[i].size() > 0 )
+			max_tses.push_back(
+			    atop::util::extract_time( this->latest_data[i][0] ) );
+
+	if( max_tses.size() > 0 )
+		this->latest_ts = *std::max_element( max_tses.begin(), max_tses.end() );
 }
 
-std::vector<std::string> const& atop::IoctlDmesgStreamer::more()
+atop::ioctl_dmesg_t const& atop::IoctlDmesgStreamer::more()
 {
-	auto data = process_dmesg_log( check_dmesg_log(), "IOCTL" );
-	this->latest_data.clear();
-	for( auto it = data.rbegin(); it != data.rend(); ++it )
+	auto data = process_and_zip_dmesg_log( check_dmesg_log(), this->probes );
+	for( size_t i = 0; i < data.size(); ++i )
 	{
-		if( atop::util::extract_time( *it ) > this->latest_ts )
-			this->latest_data.push_back( *it );
-		else
-			break;
+		this->latest_data[i].clear();
+		for( auto it = data[i].rbegin(); it != data[i].rend(); ++it )
+		{
+			if( atop::util::extract_time( *it ) > this->latest_ts )
+				this->latest_data[i].push_back( *it );
+			else
+				break;
+		}
 	}
 
-	if( this->latest_data.size() > 0 )
-		this->latest_ts = atop::util::extract_time( this->latest_data[0] );
+	std::vector<double> max_tses;
+	max_tses.reserve( this->latest_data.size() );
+	for( size_t i = 0; i < this->latest_data.size(); ++i )
+		if( this->latest_data[i].size() > 0 )
+			max_tses.push_back(
+			    atop::util::extract_time( this->latest_data[i][0] ) );
+
+	if( max_tses.size() > 0 )
+		this->latest_ts = *std::max_element( max_tses.begin(), max_tses.end() );
 
 	return this->latest_data;
 }
@@ -214,7 +254,7 @@ std::map<std::string, int> const&
 atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 {
 	std::vector<std::string> eligible;
-	auto data = this->more();
+	auto data = this->more()[PROBE_IDX( this->utilization_probe )];
 	if( data.size() == 0 )
 	{
 		std::for_each( this->latest_interactions.begin(),
@@ -226,7 +266,7 @@ atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 	{
 		auto most_recent = atop::util::extract_time( data[0] );
 		if( check_full_log )
-			eligible = this->latest_data;
+			eligible = this->latest_data[PROBE_IDX( this->utilization_probe )];
 		else
 		{
 			for( auto it = data.rbegin(); it != data.rend(); ++it )
@@ -336,8 +376,8 @@ static std::future<atop::shell_out_t> run_benchmark(
 
 	static atop::util::RandomSelector rselect{};
 	std::stringstream base_cmd;
-	// taskset f0: run benchmark on the big cores of big.LITLE ARM CPUs. This
-	// reduces variance between benchmark runs
+	// taskset f0: run benchmark on the big cores of big.LITLE ARM CPUs.
+	// This reduces variance between benchmark runs
 	base_cmd << prefix << ( ( prefix.empty() ) ? "" : ";" ) << " taskset f0 "
 	         << benchmark_bin;
 	for( auto&& p: options )
@@ -387,10 +427,10 @@ static std::future<atop::shell_out_t> run_benchmark(
 	auto cmd_str = cmd.str();
 	std::future<atop::shell_out_t> f
 	    = pool.push( [cmd_str, after_runner, selected_model, repeat]( int ) {
-		      // TODO: For now throw away stdout except for first benchmark; for
-		      // now this is fine but if any other framework requires it later
-		      // on the return type of run_benchmark will have to change to
-		      // std::vector<atop::shell_out_t>
+		      // TODO: For now throw away stdout except for first benchmark;
+		      // for now this is fine but if any other framework requires it
+		      // later on the return type of run_benchmark will have to change
+		      // to std::vector<atop::shell_out_t>
 		      auto out = check_adb_shell_output( cmd_str );
 		      for( int i = 0; i < repeat; ++i )
 		      {
@@ -401,8 +441,8 @@ static std::future<atop::shell_out_t> run_benchmark(
 
 		      if( after_runner != nullptr )
 			      // TODO: should actually operate on the output of the actual
-			      // run; log collection should be independent of models run and
-			      // simply aggregate the results into a
+			      // run; log collection should be independent of models run
+			      // and simply aggregate the results into a
 			      // concurrent_benchmark.csv
 			      return after_runner( selected_model );
 		      else
@@ -591,8 +631,11 @@ static void summarize_tflite_benchmark_output( atop::shell_out_t const& out,
 			{
 				stats.stats["init"]
 				    = strtoull( match[1].str().c_str(), &end, 10 );
+				// Inference time in tflite benchmark doesn't include
+				// pre-/post-processing
 				stats.stats["inference"]
-				    = strtoull( match[3].str().c_str(), &end, 10 );
+				    = strtoull( match[3].str().c_str(), &end, 10 )
+				      - stats.stats["offload"];
 			}
 		}
 	}

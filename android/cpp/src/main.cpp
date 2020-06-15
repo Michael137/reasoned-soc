@@ -613,8 +613,9 @@ int main( int argc, const char** argv )
 					if( cpu_fallback )
 						opts.insert( {"enable_cpu_fallback", ""} );
 
-					benchmark_futures_q.emplace( atop::run_snpe_benchmark(
-					    unzip_imgui_models( models ), opts, num_procs, num_runs ) );
+					benchmark_futures_q.emplace(
+					    atop::run_snpe_benchmark( unzip_imgui_models( models ),
+					                              opts, num_procs, num_runs ) );
 				}
 				break;
 				case atop::Frameworks::mlperf:
@@ -669,7 +670,8 @@ int main( int argc, const char** argv )
 		// TODO: add option to change log to logcat, stdout, etc.
 		ImGui::SetNextWindowSize( ImVec2( 500, 400 ), ImGuiCond_FirstUseEver );
 		ImGui::Begin( "Dmesg Log", &show_log_b );
-		for( auto&& e: streamer.get_data() )
+		for( auto&& e:
+		     streamer.get_data()[PROBE_IDX( streamer.utilization_probe )] )
 			log.AddLog( "%s\n", e.c_str() );
 		ImGui::End();
 
