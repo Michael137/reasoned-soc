@@ -614,7 +614,7 @@ int main( int argc, const char** argv )
 						opts.insert( {"enable_cpu_fallback", ""} );
 
 					benchmark_futures_q.emplace( atop::run_snpe_benchmark(
-					    unzip_imgui_models( models ), opts, num_procs ) );
+					    unzip_imgui_models( models ), opts, num_procs, num_runs ) );
 				}
 				break;
 				case atop::Frameworks::mlperf:

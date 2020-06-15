@@ -2,6 +2,7 @@
 #include <sys/wait.h>
 
 #include <array>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -21,6 +22,8 @@
 #include "atop.h"
 #include "logger.h"
 #include "util.h"
+
+using namespace std::chrono_literals;
 
 // Constants
 static const std::string TFLITE_BENCHMARK_BIN
@@ -319,9 +322,12 @@ static std::future<atop::shell_out_t> run_benchmark(
     std::string const& benchmark_bin, fmt::string_view options_fmt,
     fmt::string_view model_fmt, std::vector<std::string> const& model_paths,
     std::map<std::string, std::string> const& options, int processes,
-    std::string const& prefix                                   = "",
-    std::function<std::string( std::string const& )> suffix_gen = nullptr,
-    std::function<atop::shell_out_t( void )> run_after_cb       = nullptr )
+    std::string const& prefix = "",
+    std::function<std::string( std::string const& )> const& suffix_gen
+    = nullptr,
+    std::function<atop::shell_out_t( std::string const& )> const& after_runner
+    = nullptr,
+    int repeat = 0 )
 {
 	// The user is unlikely to spawn more than
 	// 8 threads simultaneously (unless this function
@@ -343,14 +349,15 @@ static std::future<atop::shell_out_t> run_benchmark(
 	std::string base_cmd_str{base_cmd.str()};
 	std::stringstream cmd;
 	std::string model_fmt_str = fmt::format( " {0} & ", model_fmt );
+	std::string selected_model;
 	cmd << base_cmd_str;
 	for( int i = 0; i < processes; ++i )
 	{
-		auto model = rselect( model_paths );
+		selected_model = rselect( model_paths );
 		if( suffix_gen != nullptr )
-			cmd << " " << suffix_gen( model ) << " ";
+			cmd << " " << suffix_gen( selected_model ) << " ";
 
-		cmd << fmt::format( model_fmt_str, model );
+		cmd << fmt::format( model_fmt_str, selected_model );
 
 		if( i < processes - 1 )
 			cmd << base_cmd_str;
@@ -379,10 +386,25 @@ static std::future<atop::shell_out_t> run_benchmark(
 
 	auto cmd_str = cmd.str();
 	std::future<atop::shell_out_t> f
-	    = pool.push( [cmd_str, run_after_cb]( int ) {
+	    = pool.push( [cmd_str, after_runner, selected_model, repeat]( int ) {
+		      // TODO: For now throw away stdout except for first benchmark; for
+		      // now this is fine but if any other framework requires it later
+		      // on the return type of run_benchmark will have to change to
+		      // std::vector<atop::shell_out_t>
 		      auto out = check_adb_shell_output( cmd_str );
-		      if( run_after_cb != nullptr )
-			      return run_after_cb();
+		      for( int i = 0; i < repeat; ++i )
+		      {
+			      // TODO: could make this sleep parameter configurable
+			      std::this_thread::sleep_for( 1s );
+			      check_adb_shell_output( cmd_str );
+		      }
+
+		      if( after_runner != nullptr )
+			      // TODO: should actually operate on the output of the actual
+			      // run; log collection should be independent of models run and
+			      // simply aggregate the results into a
+			      // concurrent_benchmark.csv
+			      return after_runner( selected_model );
 		      else
 			      return out;
 	      } );
@@ -399,10 +421,39 @@ atop::run_tflite_benchmark( std::vector<std::string> const& model_paths,
 	                      model_paths, options, processes );
 }
 
+template<typename T>
+std::vector<T> concat_vec( std::vector<T>&& lhs, std::vector<T>&& rhs )
+{
+	if( lhs.empty() )
+		return std::move( rhs );
+	lhs.insert( lhs.cend(), std::make_move_iterator( rhs.begin() ),
+	            std::make_move_iterator( rhs.end() ) );
+	return std::move( lhs );
+}
+
+static atop::shell_out_t
+get_snpe_diagview_output( std::string const& model_path )
+{
+	auto log_files = check_adb_shell_output(
+	    fmt::format( "ls {0}/output/SNPEDiag_*.log",
+	                 atop::util::basepath( model_path ).c_str() ) );
+
+	// TODO: check whether diagview exists
+	atop::shell_out_t out;
+	for( auto&& file: log_files )
+	{
+		out = concat_vec( std::move( out ),
+		                  atop::check_console_output( fmt::format(
+		                      "snpe-diagview {0}", file.c_str() ) ) );
+	}
+
+	return out;
+}
+
 std::future<atop::shell_out_t>
 atop::run_snpe_benchmark( std::vector<std::string> const& model_paths,
                           std::map<std::string, std::string> const& options,
-                          int processes )
+                          int processes, int num_runs )
 {
 	// Awkward ADSP_LIBRARY_PATH because paths need to be
 	// separated by ";" instead of the usual ":"
@@ -414,13 +465,27 @@ atop::run_snpe_benchmark( std::vector<std::string> const& model_paths,
 	      "arm-android-clang6.0/lib/../../dsp/lib;/system/lib/rfsa/adsp;"
 	      "/usr/lib/rfsa/adsp;/system/vendor/lib/rfsa/adsp;"
 	      "/dsp;/etc/images/dsp;\\\"";
+
+	for( auto&& m: model_paths )
+	{
+		std::string base_path = atop::util::basepath( m );
+
+		atop::logger::verbose_info( fmt::format(
+		    "Deleting previous benchmark results in {0}/output", base_path ) );
+
+		check_adb_shell_output(
+		    fmt::format( "rm -rf {0}/output/SNPEDiag_*.log", base_path ) );
+	}
+
 	return run_benchmark(
 	    SNPE_BENCHMARK_BIN, "--{0} {1}", "--container {0}", model_paths,
-	    options, processes, prefix, []( std::string const& model ) {
+	    options, processes, prefix,
+	    []( std::string const& model ) {
 		    return fmt::format(
 		        "--input_list {0}/target_raw_list.txt --output {0}/output",
 		        atop::util::basepath( model ) );
-	    } );
+	    },
+	    get_snpe_diagview_output, num_runs - 1 /* = repeat */ );
 }
 
 static inline bool is_cpu_str( std::string const& line )
@@ -540,30 +605,51 @@ static void summarize_tflite_benchmark_output( atop::shell_out_t const& out,
 static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
                                              atop::BenchmarkStats& stats )
 {
+	bool start_parsing = false;
 	char* end;
-	for( auto& line: out )
+
+	// SNPE Stats
+	std::map<std::string, uint64_t> snpe_stats;
+
+	for( auto&& line: out )
 	{
-		if( line.rfind( "PRE-PROCESSING", 0 ) == 0 )
+		// Assuming the result sections are ordered as:
+		// 1. Dnn Runtime Load/Deserialize/Create/De-Init Statistics
+		// 2. Average Statistics
+		// 3. Layer Times section
+		if( line.rfind(
+		        "Dnn Runtime Load/Deserialize/Create/De-Init Statistics", 0 )
+		    == 0 )
 		{
-			stats.stats["preproc"] = strtoull(
-			    atop::util::split( line, ' ' )[1].c_str(), &end, 10 );
+			start_parsing = true;
+			continue;
 		}
-		if( line.rfind( "Inference timings in us", 0 ) == 0 )
+
+		if( line.rfind( "Layer Times" ) )
+			break;
+
+		if( start_parsing )
 		{
-			// Extract "Init" and "Inference (avg)" results
-			std::regex pattern{
-			    R"(Init: ([0-9]+)([0-9a-zA-Z:\s,\(\)].*)Inference \(avg\): ([0-9]+))"};
+			// Match e.g. Create Networks(s): 12345 us
+			std::regex pattern{R"(([A-Za-z\s\(\)-]+):\s([0-9]+) us)"};
 			std::smatch match;
 
 			if( std::regex_search( line, match, pattern ) )
-			{
-				stats.stats["init"]
-				    = strtoull( match[1].str().c_str(), &end, 10 );
-				stats.stats["inference"]
-				    = strtoull( match[3].str().c_str(), &end, 10 );
-			}
+				snpe_stats[match[1]]
+				    = strtoull( match[2].str().c_str(), &end, 10 );
 		}
 	}
+
+	// SNPE workloads are already pre-processed
+	stats.stats["preproc"] = 0;
+
+	stats.stats["inference"] = snpe_stats["Forward Propogate"];
+
+	stats.stats["offload"]
+	    = ( snpe_stats["RPC Init Time"] - snpe_stats["Accelerator Init Time"] )
+	      + ( snpe_stats["RPC Execute"] - snpe_stats["Accelerator"] );
+	stats.stats["postproc"] = 0;
+	stats.stats["init"]     = snpe_stats["Init"];
 }
 
 void atop::summarize_benchmark_output( shell_out_t const& out,

@@ -67,7 +67,7 @@ run_tflite_benchmark( std::vector<std::string> const& model_paths,
 std::future<shell_out_t>
 run_snpe_benchmark( std::vector<std::string> const& model_paths,
                     std::map<std::string, std::string> const& options,
-                    int processes = 1 );
+                    int processes = 1, int num_runs = 1 );
 
 class IoctlDmesgStreamer
 {
