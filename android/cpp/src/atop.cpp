@@ -444,7 +444,9 @@ get_snpe_diagview_output( std::string const& model_path )
 	{
 		out = concat_vec( std::move( out ),
 		                  atop::check_console_output( fmt::format(
-		                      "snpe-diagview {0}", file.c_str() ) ) );
+		                      "adb shell cat {0} > /tmp/diag.log && "
+		                      "snpe-diagview --input_log /tmp/diag.log",
+		                      file.c_str() ) ) );
 	}
 
 	return out;
@@ -565,7 +567,8 @@ atop::CpuUtilizationStreamer::utilizations()
 		this->del_idle[i]       = this->idle[i] - this->idle_old[i];
 
 		this->latest_utils[fmt::format( "cpu{0}", i )]
-		    = ( ( this->del_total_tick[i] - this->del_idle[i] )
+		    = ( static_cast<double>( this->del_total_tick[i]
+		                             - this->del_idle[i] )
 		        / static_cast<double>( this->del_total_tick[i] ) )
 		      * 100;
 	}
@@ -625,7 +628,7 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 			continue;
 		}
 
-		if( line.rfind( "Layer Times" ) )
+		if( line.rfind( "Layer Times", 0 ) == 0 )
 			break;
 
 		if( start_parsing )
@@ -643,7 +646,7 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 	// SNPE workloads are already pre-processed
 	stats.stats["preproc"] = 0;
 
-	stats.stats["inference"] = snpe_stats["Forward Propogate"];
+	stats.stats["inference"] = snpe_stats["Forward Propagate Time"];
 
 	stats.stats["offload"]
 	    = ( snpe_stats["RPC Init Time"] - snpe_stats["Accelerator Init Time"] )

@@ -492,8 +492,6 @@ int main( int argc, const char** argv )
 				atop::shell_out_t benchmark_out
 				    = benchmark_futures_q.front().get();
 
-				// summarize_benchmark(selected_framework, benchmark stats,
-				// benchmark_result)
 				atop::summarize_benchmark_output(
 				    benchmark_out,
 				    atop::string2framework(
