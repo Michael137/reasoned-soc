@@ -133,6 +133,7 @@ class IoctlDmesgStreamer
 	                                                double threshold = 20.0 );
 
 	DmesgProbes utilization_probe;
+	bool is_data_fresh;
 
    private:
 	double latest_ts;

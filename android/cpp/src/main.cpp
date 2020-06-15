@@ -311,6 +311,8 @@ int main( int argc, const char** argv )
 
 	static int workloads_running = 0;
 
+	static bool streamer_updated = false;
+
 	sf::Clock deltaClock;
 
 	atop::logger::verbose_info( "Finished initialization" );
@@ -356,7 +358,11 @@ int main( int argc, const char** argv )
 			// TODO: separate discrete cpu stream vs. floating
 			for( auto&& kv: cpu_data )
 				data[kv.first] = static_cast<int>( kv.second );
+
+			streamer_updated = true;
 		}
+		else
+			streamer_updated = false;
 
 		ImGui::SFML::Update( window, deltaClock.restart() );
 
@@ -670,9 +676,14 @@ int main( int argc, const char** argv )
 		// TODO: add option to change log to logcat, stdout, etc.
 		ImGui::SetNextWindowSize( ImVec2( 500, 400 ), ImGuiCond_FirstUseEver );
 		ImGui::Begin( "Dmesg Log", &show_log_b );
-		for( auto&& e:
-		     streamer.get_data()[PROBE_IDX( streamer.utilization_probe )] )
-			log.AddLog( "%s\n", e.c_str() );
+		if( streamer.is_data_fresh && streamer_updated )
+		{
+			auto data_to_log
+			    = streamer.get_data()[PROBE_IDX( streamer.utilization_probe )];
+			for( auto it = data_to_log.rbegin(); it != data_to_log.rend();
+			     ++it )
+				log.AddLog( "%s\n", ( *it ).c_str() );
+		}
 		ImGui::End();
 
 		// Actually call in the regular Log helper (which will Begin() into

@@ -190,6 +190,7 @@ process_and_zip_dmesg_log( atop::shell_out_t&& log,
 atop::IoctlDmesgStreamer::IoctlDmesgStreamer(
     std::vector<std::string> const& probes )
     : utilization_probe( atop::DmesgProbes::IOCTL )
+    , is_data_fresh( false )
     , latest_ts( 0.0 )
     , latest_data( process_and_zip_dmesg_log( check_dmesg_log(), probes ) )
     , latest_interactions( {} )
@@ -200,7 +201,7 @@ atop::IoctlDmesgStreamer::IoctlDmesgStreamer(
 	for( size_t i = 0; i < this->latest_data.size(); ++i )
 		if( this->latest_data[i].size() > 0 )
 			max_tses.push_back(
-			    atop::util::extract_time( this->latest_data[i][0] ) );
+			    atop::util::extract_time( this->latest_data[i].back() ) );
 
 	if( max_tses.size() > 0 )
 		this->latest_ts = *std::max_element( max_tses.begin(), max_tses.end() );
@@ -229,7 +230,12 @@ atop::ioctl_dmesg_t const& atop::IoctlDmesgStreamer::more()
 			    atop::util::extract_time( this->latest_data[i][0] ) );
 
 	if( max_tses.size() > 0 )
+	{
 		this->latest_ts = *std::max_element( max_tses.begin(), max_tses.end() );
+		this->is_data_fresh = true;
+	}
+	else
+		this->is_data_fresh = false;
 
 	return this->latest_data;
 }
