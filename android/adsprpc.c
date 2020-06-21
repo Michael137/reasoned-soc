@@ -1690,12 +1690,14 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 					uint64_to_ptr(rpra[i].buf.pv),
 					rpra[i].buf.len,
 					ION_IOC_CLEAN_INV_CACHES);
-				printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+				//printk(KERN_ALERT "INFO: invalidate ion cache %s\n", __FUNCTION__);
+				printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
 			} else {
 				dmac_flush_range(uint64_to_ptr(rpra[i].buf.pv),
 					uint64_to_ptr(rpra[i].buf.pv
 						+ rpra[i].buf.len));
-				printk(KERN_ALERT "DEBUG: flushing cache %s\n", __FUNCTION__);
+				//printk(KERN_ALERT "INFO: flushing dmac cache %s\n", __FUNCTION__);
+				printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
 			}
 		}
 	}
@@ -1803,12 +1805,14 @@ static void inv_args_pre(struct smq_invoke_ctx *ctx)
 					uint64_to_ptr(rpra[i].buf.pv),
 					sizeof(uintptr_t),
 					ION_IOC_CLEAN_INV_CACHES);
-				printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+				//printk(KERN_ALERT "INFO: invalidate ion cache %s\n", __FUNCTION__);
+				printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
 			} else {
 				dmac_flush_range(
 					uint64_to_ptr(rpra[i].buf.pv), (char *)
 					uint64_to_ptr(rpra[i].buf.pv + 1));
-				printk(KERN_ALERT "DEBUG: flushing cache %s\n", __FUNCTION__);
+				//printk(KERN_ALERT "INFO: flushing dmac cache %s\n", __FUNCTION__);
+				printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
 			}
 		}
 
@@ -1821,11 +1825,13 @@ static void inv_args_pre(struct smq_invoke_ctx *ctx)
 						uint64_to_ptr(end),
 						sizeof(uintptr_t),
 						ION_IOC_CLEAN_INV_CACHES);
-				printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+				//printk(KERN_ALERT "INFO: invalidate ion cache %s\n", __FUNCTION__);
+				printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
 			} else {
 				dmac_flush_range((char *)end,
 					(char *)end + 1);
-				printk(KERN_ALERT "DEBUG: flushing cache %s\n", __FUNCTION__);
+				//printk(KERN_ALERT "INFO: flushing dmac cache %s\n", __FUNCTION__);
+				printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
 			}
 		}
 	}
@@ -1860,12 +1866,14 @@ static void inv_args(struct smq_invoke_ctx *ctx)
 			msm_ion_do_cache_op(ctx->fl->apps->client, map->handle,
 				(char *)uint64_to_ptr(rpra[i].buf.pv),
 				rpra[i].buf.len, ION_IOC_INV_CACHES);
-			printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+			//printk(KERN_ALERT "INFO: invalidate ion cache %s\n", __FUNCTION__);
+			printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
 		} else {
 			dmac_inv_range((char *)uint64_to_ptr(rpra[i].buf.pv),
 				(char *)uint64_to_ptr(rpra[i].buf.pv
 						 + rpra[i].buf.len));
-			printk(KERN_ALERT "DEBUG: invalidate cache %s\n", __FUNCTION__);
+			//printk(KERN_ALERT "INFO: invalidate dmac cache %s\n", __FUNCTION__);
+			printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
 		}
 	}
 
@@ -1894,7 +1902,7 @@ static int fastrpc_invoke_send(struct smq_invoke_ctx *ctx,
 	msg->invoke.page.addr = ctx->buf ? ctx->buf->phys : 0;
 	msg->invoke.page.size = buf_page_size(ctx->used);
 
-	printk(KERN_ALERT "DEBUG: %s %d\nfl->apps->glink: %d\ninvoke.page.addr: %lu\ninvoke.page.size: %zd\npid: %u\ntid: %u\n",__FUNCTION__,__LINE__, fl->apps->glink,msg->invoke.page.addr,msg->invoke.page.size,msg->pid,msg->tid);
+//	printk(KERN_ALERT "DEBUG: %s %d\nfl->apps->glink: %d\ninvoke.page.addr: %lu\ninvoke.page.size: %zd\npid: %u\ntid: %u\n",__FUNCTION__,__LINE__, fl->apps->glink,msg->invoke.page.addr,msg->invoke.page.size,msg->pid,msg->tid);
 
 	if (fl->apps->glink) {
 		if (fl->ssrcount != channel_ctx->ssrcount) {
@@ -2027,7 +2035,7 @@ static char* decode_iowr(unsigned int ioctl_num)
 static void fastrpc_init(struct fastrpc_apps *me)
 {
 	int i;
-	printk(KERN_ALERT "DEBUG: fastrpc_init %s (pid: %u) %d \n",__FUNCTION__,current->pid, __LINE__);
+	// printk(KERN_ALERT "DEBUG: fastrpc_init %s (pid: %u) %d \n",__FUNCTION__,current->pid, __LINE__);
 	INIT_HLIST_HEAD(&me->drivers);
 	INIT_HLIST_HEAD(&me->maps);
 	spin_lock_init(&me->hlock);
@@ -2049,7 +2057,7 @@ static int fastrpc_release_current_dsp_process(struct fastrpc_file *fl);
 
 static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 				   uint32_t kernel,
-				   struct fastrpc_ioctl_invoke_crc *inv)
+				   struct fastrpc_ioctl_invoke_crc *inv, int printk_time)
 {
 	struct smq_invoke_ctx *ctx = NULL;
 	struct fastrpc_ioctl_invoke *invoke = &inv->inv;
@@ -2087,7 +2095,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		goto bail;
 
 	if (!kernel) {
-		printk(KERN_ALERT "DEBUG: calling context_restore_interrupted (perf: %d) (pid: %u) (kernel = %u) [%s %d] \n", fl->profile, current->pid, kernel, __FUNCTION__,__LINE__);
+		// printk(KERN_ALERT "DEBUG: calling context_restore_interrupted (perf: %d) (pid: %u) (kernel = %u) [%s %d] \n", fl->profile, current->pid, kernel, __FUNCTION__,__LINE__);
 		VERIFY(err, 0 == context_restore_interrupted(fl, inv,
 								&ctx));
 		if (err)
@@ -2116,12 +2124,13 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		PERF(fl->profile, GET_COUNTER(perf_counter, PERF_INVARGS),
 		inv_args_pre(ctx);
 		PERF_END);
-		printk(KERN_ALERT "DEBUG: invalidate cache (inv_args_pre) called from %s %ld\n",
-			__FUNCTION__, GET_COUNTER(perf_counter, PERF_INVARGS));
+//		printk(KERN_ALERT "INFO: invalidate cache (inv_args_pre) called from %s %ld\n",
+//			__FUNCTION__, GET_COUNTER(perf_counter, PERF_INVARGS));
+		printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
 	}
 
 	PERF(fl->profile, GET_COUNTER(perf_counter, PERF_LINK),
-	printk(KERN_ALERT "DEBUG: %s: Application %s sending RPC message to channel %d over device %s\n", __func__, current->comm, cid, ctx->fl->apps->channel[fl->cid].name);
+	// printk(KERN_ALERT "DEBUG: %s: Application %s sending RPC message to channel %d over device %s\n", __func__, current->comm, cid, ctx->fl->apps->channel[fl->cid].name);
 	VERIFY(err, 0 == fastrpc_invoke_send(ctx, kernel, invoke->handle));
 	PERF_END);
 
@@ -2137,24 +2146,27 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 		if (err)
 			goto bail;
 	}
-	ktime_get_ts64(&end);
-	final = timespec64_sub(end, start);
-	printk(KERN_ALERT "TIME internal_invoke: (channel: %s) (app: %s) (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) (execution (s): %llu.%0.9u\n",
-														fl->apps->channel[fl->cid].name,
-														current->comm,
-														current->pid,
-														fl->tgid,
-														fl->cid,
-														fl->sessionid,
-														(u64)final.tv_sec, (u32)final.tv_nsec);
+	if(printk_time != 0) {
+		ktime_get_ts64(&end);
+		final = timespec64_sub(end, start);
+		printk(KERN_ALERT "TIME internal_invoke: (channel: %s) (app: %s) (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) (execution (s): %llu.%0.9u\n",
+															fl->apps->channel[fl->cid].name,
+															current->comm,
+															current->pid,
+															fl->tgid,
+															fl->cid,
+															fl->sessionid,
+															(u64)final.tv_sec, (u32)final.tv_nsec);
+	}
 
 	// 137: Actual profiling inconsistency
 	if (!fl->sctx->smmu.coherent) {
 		PERF(fl->profile, GET_COUNTER(perf_counter, PERF_INVARGS),
 			inv_args(ctx);
 		PERF_END);
-		printk(KERN_ALERT "DEBUG: invalidate cache (inv_args) called from %s %ld\n",
-			__FUNCTION__, GET_COUNTER(perf_counter, PERF_INVARGS));
+		printk(KERN_ALERT "INFO: (app: %s) invalidate cache\n", current->comm);
+		//printk(KERN_ALERT "INFO: invalidate cache (inv_args) called from %s %ld\n",
+		//	__FUNCTION__, GET_COUNTER(perf_counter, PERF_INVARGS));
 	}
 
 	VERIFY(err, 0 == (err = ctx->retval));
@@ -2167,7 +2179,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 	if (err)
 		goto bail;
  bail:
-	printk(KERN_ALERT "DEBUG: %s (pid: %u) (got to bail)\n",__FUNCTION__, current->pid);
+	// printk(KERN_ALERT "DEBUG: %s (pid: %u) (got to bail)\n",__FUNCTION__, current->pid);
 	if (ctx && interrupted == -ERESTARTSYS)
 		context_save_interrupted(ctx);
 	else if (ctx)
@@ -2237,7 +2249,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 		remote_arg_t ra[1];
 		int tgid = fl->tgid;
 
-		printk(KERN_ALERT "DEBUG: %s (pid: %u) (attach)\n",__FUNCTION__, current->pid);
+		// printk(KERN_ALERT "DEBUG: %s (pid: %u) (attach)\n",__FUNCTION__, current->pid);
 		ra[0].buf.pv = (void *)&tgid;
 		ra[0].buf.len = sizeof(tgid);
 		ioctl.inv.handle = FASTRPC_STATIC_HANDLE_KERNEL;
@@ -2253,7 +2265,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 			fl->pd = 2;
 		}
 		VERIFY(err, !(err = fastrpc_internal_invoke(fl,
-			FASTRPC_MODE_PARALLEL, 1, &ioctl)));
+			FASTRPC_MODE_PARALLEL, 1, &ioctl, 0)));
 		if (err)
 			goto bail;
 	} else if (init->flags == FASTRPC_INIT_CREATE) {
@@ -2270,7 +2282,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 			int siglen;
 		} inbuf;
 
-		printk(KERN_ALERT "DEBUG: %s (pid: %u) (create)\n",__FUNCTION__, current->pid);
+		// printk(KERN_ALERT "DEBUG: %s (pid: %u) (create)\n",__FUNCTION__, current->pid);
 		inbuf.pgid = fl->tgid;
 		inbuf.namelen = strlen(current->comm) + 1;
 		inbuf.filelen = init->filelen;
@@ -2345,7 +2357,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 		ioctl.attrs = NULL;
 		ioctl.crc = NULL;
 		VERIFY(err, !(err = fastrpc_internal_invoke(fl,
-			FASTRPC_MODE_PARALLEL, 1, &ioctl)));
+			FASTRPC_MODE_PARALLEL, 1, &ioctl,0)));
 		if (err)
 			goto bail;
 	} else if (init->flags == FASTRPC_INIT_CREATE_STATIC) {
@@ -2359,7 +2371,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 			unsigned int pageslen;
 		} inbuf;
 
-		printk(KERN_ALERT "DEBUG: %s (pid: %u) (create static)\n",__FUNCTION__, current->pid);
+		// printk(KERN_ALERT "DEBUG: %s (pid: %u) (create static)\n",__FUNCTION__, current->pid);
 		if (!init->filelen)
 			goto bail;
 
@@ -2431,7 +2443,7 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 		ioctl.attrs = NULL;
 		ioctl.crc = NULL;
 		VERIFY(err, !(err = fastrpc_internal_invoke(fl,
-			FASTRPC_MODE_PARALLEL, 1, &ioctl)));
+			FASTRPC_MODE_PARALLEL, 1, &ioctl,0)));
 		if (err)
 			goto bail;
 	} else {
@@ -2482,7 +2494,7 @@ static int fastrpc_release_current_dsp_process(struct fastrpc_file *fl)
 	ioctl.attrs = NULL;
 	ioctl.crc = NULL;
 	VERIFY(err, 0 == (err = fastrpc_internal_invoke(fl,
-		FASTRPC_MODE_PARALLEL, 1, &ioctl)));
+		FASTRPC_MODE_PARALLEL, 1, &ioctl,0)));
 bail:
 	return err;
 }
@@ -2531,7 +2543,7 @@ static int fastrpc_mmap_on_dsp(struct fastrpc_file *fl, uint32_t flags,
 	ioctl.attrs = NULL;
 	ioctl.crc = NULL;
 	VERIFY(err, 0 == (err = fastrpc_internal_invoke(fl,
-		FASTRPC_MODE_PARALLEL, 1, &ioctl)));
+		FASTRPC_MODE_PARALLEL, 1, &ioctl,0)));
 	*raddr = (uintptr_t)routargs.vaddrout;
 	if (err)
 		goto bail;
@@ -2586,7 +2598,7 @@ static int fastrpc_munmap_on_dsp_rh(struct fastrpc_file *fl, uint64_t phys,
 			goto bail;
 
 		VERIFY(err, 0 == (err = fastrpc_internal_invoke(fl,
-				FASTRPC_MODE_PARALLEL, 1, &ioctl)));
+				FASTRPC_MODE_PARALLEL, 1, &ioctl,0)));
 		if (err)
 			goto bail;
 		desc.args[0] = TZ_PIL_AUTH_QDSP6_PROC;
@@ -2637,7 +2649,7 @@ static int fastrpc_munmap_on_dsp(struct fastrpc_file *fl, uintptr_t raddr,
 	ioctl.attrs = NULL;
 	ioctl.crc = NULL;
 	VERIFY(err, 0 == (err = fastrpc_internal_invoke(fl,
-		FASTRPC_MODE_PARALLEL, 1, &ioctl)));
+		FASTRPC_MODE_PARALLEL, 1, &ioctl,0)));
 	if (err)
 		goto bail;
 	if (flags == ADSP_MMAP_HEAP_ADDR ||
@@ -2820,7 +2832,8 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 
 	mutex_lock(&fl->map_mutex);
 	if (ud->flags == ADSP_MMAP_ADD_PAGES) {
-		printk(KERN_ALERT "DEBUG: %s (pid: %u) (adding pages)\n",__FUNCTION__, current->pid);
+		//printk(KERN_ALERT "INFO: %s (pid: %u) (adding pages)\n",__FUNCTION__, current->pid);
+		printk(KERN_ALERT "INFO: (app: %s) adding pages\n", current->comm);
 		if (ud->vaddrin) {
 			err = -EINVAL;
 			pr_err("adsprpc: %s: %s: ERROR: adding user allocated pages is not supported\n",
@@ -2842,7 +2855,8 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 	} else {
 		uintptr_t va_to_dsp;
 
-		printk(KERN_ALERT "DEBUG: %s (pid: %u) (not adding pages i.e. fastrpc_mmap_create)\n",__FUNCTION__, current->pid);
+		// printk(KERN_ALERT "INFO: %s (pid: %u) (not adding pages i.e. fastrpc_mmap_create)\n",__FUNCTION__, current->pid);
+		printk(KERN_ALERT "INFO: (app: %s) fastrpc_mmap_create\n",current->comm);
 		mutex_lock(&fl->fl_map_mutex);
 		if (!fastrpc_mmap_find(fl, ud->fd, (uintptr_t)ud->vaddrin,
 				 ud->size, ud->flags, 1, &map)) {
@@ -3106,7 +3120,7 @@ static int fastrpc_device_release(struct inode *inode, struct file *file)
 		if (fl->debugfs_file != NULL)
 			debugfs_remove(fl->debugfs_file);
 
-		printk(KERN_ALERT "DEBUG: %s: releasing %s\n", __func__, fl->apps->channel[fl->cid].name);
+		printk(KERN_ALERT "INFO: (app: %s) releasing\n", current->comm);
 		fastrpc_file_free(fl);
 		file->private_data = NULL;
 	}
@@ -3545,6 +3559,8 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 	 */
 	int dev_minor = MINOR(inode->i_rdev);
 
+	printk(KERN_ALERT "INFO: (app: %s) opening\n", current->comm);
+
 	VERIFY(err, ((dev_minor == MINOR_NUM_DEV) ||
 			(dev_minor == MINOR_NUM_SECURE_DEV)));
 	if (err) {
@@ -3654,7 +3670,7 @@ static int fastrpc_internal_control(struct fastrpc_file *fl,
 		latency = cp->lp.enable == FASTRPC_LATENCY_CTRL_ENB ?
 			fl->apps->latency : PM_QOS_DEFAULT_VALUE;
 		VERIFY(err, latency != 0);
-		printk(KERN_ALERT "DEBUG: %s (pid: %u) (set latency to %d because cp->lp.enable == %d (default PM_QOS is: %d)\n",__FUNCTION__, current->pid, latency, cp->lp.enable, PM_QOS_DEFAULT_VALUE);
+		// printk(KERN_ALERT "DEBUG: %s (pid: %u) (set latency to %d because cp->lp.enable == %d (default PM_QOS is: %d)\n",__FUNCTION__, current->pid, latency, cp->lp.enable, PM_QOS_DEFAULT_VALUE);
 		if (err)
 			goto bail;
 		if (!fl->qos_request) {
@@ -3709,7 +3725,6 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	p.inv.crc = NULL;
 	spin_lock(&fl->hlock);
 	if (fl->file_close == 1) {
-		printk(KERN_ALERT "DEBUG: adsprpc device released\n");
 		err = EBADF;
 		pr_warn("ADSPRPC: fastrpc_device_release is happening, So not sending any new requests to DSP");
 		spin_unlock(&fl->hlock);
@@ -3747,7 +3762,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 		if (err)
 			goto bail;
 		VERIFY(err, 0 == (err = fastrpc_internal_invoke(fl, fl->mode,
-						0, &p.inv)));
+						0, &p.inv, 1 /* print timing */)));
 		if (err)
 			goto bail;
 		break;
@@ -3920,7 +3935,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	}
 	ktime_get_ts64(&end);
 	final = timespec64_sub(end, start);
-	printk(KERN_ALERT "TIME ioctl: (channel: %s) (app: %s) (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) %s (ioctl (s): %llu.%0.9u\n",
+	printk(KERN_ALERT "TIME ioctl (s): (channel: %s) (app: %s) (pid: %u) (tgid: %d) (cid: %d) (sessionid: %d) %s: %llu.%0.9u\n",
 														fl->apps->channel[fl->cid].name,
 														current->comm,
 														current->pid,
@@ -3928,6 +3943,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 														fl->cid,
 														fl->sessionid,
 														decoded, (u64)final.tv_sec, (u32)final.tv_nsec);
+
  bail:
 	return err;
 }
