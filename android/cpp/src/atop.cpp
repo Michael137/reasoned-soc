@@ -195,6 +195,7 @@ atop::IoctlDmesgStreamer::IoctlDmesgStreamer(
     , latest_data( process_and_zip_dmesg_log( check_dmesg_log(), probes ) )
     , latest_interactions( {} )
     , probes( probes )
+    , stream_latency( 0.0 )
 {
 	std::vector<double> max_tses;
 	max_tses.reserve( this->latest_data.size() );
@@ -259,6 +260,7 @@ static std::string extract_dmesg_accl_tag( std::string const& str )
 std::map<std::string, int> const&
 atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 {
+	auto start = std::chrono::system_clock::now();
 	std::vector<std::string> eligible;
 	auto data = this->more()[PROBE_IDX( this->utilization_probe )];
 	if( data.size() == 0 )
@@ -266,7 +268,6 @@ atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 		std::for_each( this->latest_interactions.begin(),
 		               this->latest_interactions.end(),
 		               [&]( auto& p ) { p.second = 0; } );
-		return this->latest_interactions;
 	}
 	else
 	{
@@ -303,6 +304,10 @@ atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 			}
 		}
 	}
+	auto end = std::chrono::system_clock::now();
+
+	this->stream_latency
+	    = std::chrono::duration_cast<std::chrono::milliseconds>( end - start ).count();
 
 	return this->latest_interactions;
 }
