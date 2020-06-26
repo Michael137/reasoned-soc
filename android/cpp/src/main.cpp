@@ -8,6 +8,7 @@
 #include <map>
 #include <queue>
 #include <sstream>
+#include <thread>
 #include <utility>
 
 #include <docopt/docopt.h>
@@ -21,6 +22,7 @@
 #include <SFML/Window/Event.hpp>
 
 #include "atop.h"
+#include "fifo.h"
 #include "logger.h"
 
 static auto vector_getter = []( void* vec, int idx, const char** out_text ) {
@@ -307,20 +309,13 @@ int main( int argc, const char** argv )
 	static std::map<std::string, std::map<std::string, int>> ioctl_breakdown;
 	;
 
-	// TODO: refresh rate redundant once FIFO is implemented
-	constexpr auto streamer_refresh_rate = 2s;
 	atop::IoctlDmesgStreamer streamer;
-	std::chrono::time_point<std::chrono::system_clock> timer_prev
-	    = std::chrono::system_clock::now();
-	std::chrono::time_point<std::chrono::system_clock> timer_cur;
 
 	// TODO: cpu utilization can be refreshed more often
 	atop::CpuUtilizationStreamer cpu_streamer;
 
 	auto data = streamer.get_interactions();
 	std::map<std::string, double> cpu_data;
-
-	float stream_latency = 0.0;
 
 	static std::map<std::string, int> max_interactions{};
 
@@ -334,9 +329,34 @@ int main( int argc, const char** argv )
 
 	static bool streamer_updated = false;
 
+	static std::atomic<bool> exiting = false;
+
 	sf::Clock deltaClock;
 
 	atop::logger::verbose_info( "Finished initialization" );
+
+	atop::fifo::FIFO<std::map<std::string, int>> ioctl_dmesg_fifo;
+	auto stream_ioctl_dmesg = [&]() {
+		while( !exiting )
+		{
+			ioctl_dmesg_fifo.push_data(
+			    streamer.interactions( true /* check full log */ ) );
+
+			// As long as refresh rate is higher than stream latency
+			std::this_thread::sleep_for( 2s );
+		}
+	};
+	std::thread streamer_th{stream_ioctl_dmesg};
+
+	atop::fifo::FIFO<std::map<std::string, double>> cpu_fifo;
+	auto stream_cpu = [&]() {
+		while( !exiting )
+		{
+			cpu_fifo.push_data( cpu_streamer.utilizations() );
+			std::this_thread::sleep_for( 1s );
+		}
+	};
+	std::thread cpu_th{stream_cpu};
 
 	while( window.isOpen() )
 	{
@@ -353,37 +373,17 @@ int main( int argc, const char** argv )
 			}
 		}
 
-		timer_cur = std::chrono::system_clock::now();
-		if( !utilization_paused
-		    && std::chrono::duration_cast<std::chrono::seconds>( timer_cur
-		                                                         - timer_prev )
-		               .count()
-		           >= streamer_refresh_rate.count() )
+		if( !utilization_paused && ioctl_dmesg_fifo.data_avail() )
 		{
-			// TODO: measure latency within streamer class
-			auto start = std::chrono::system_clock::now();
-			data       = streamer.interactions( true /* check full log */ );
-			timer_prev = timer_cur;
-			auto end   = std::chrono::system_clock::now();
-
-			stream_latency
-			    = static_cast<float>(
-			          std::chrono::duration_cast<std::chrono::milliseconds>(
-			              end - start )
-			              .count() )
-			      / 1000;
-
-			// TODO: measure stream CPU latency
-			cpu_data = cpu_streamer.utilizations();
-
-			// TODO: separate discrete cpu stream vs. floating
-			for( auto&& kv: cpu_data )
-				data[kv.first] = static_cast<int>( kv.second );
-
+			data             = ioctl_dmesg_fifo.pop_data();
 			streamer_updated = true;
 		}
 		else
 			streamer_updated = false;
+
+		if( !utilization_paused && cpu_fifo.data_avail() )
+			// TODO: measure stream CPU latency
+			cpu_data = cpu_fifo.pop_data();
 
 		ImGui::SFML::Update( window, deltaClock.restart() );
 
@@ -396,8 +396,9 @@ int main( int argc, const char** argv )
 		                  | ImGuiWindowFlags_NoBringToFrontOnFocus
 		                  | ImGuiWindowFlags_NoTitleBar
 		                  | ImGuiWindowFlags_MenuBar );
-		std::string latency_text
-		    = fmt::format( "Stream latency: {0} s", stream_latency );
+		std::string latency_text = fmt::format(
+		    "Stream latency: {0} s",
+		    streamer.get_duration() / static_cast<float>( 1.0e3 ) );
 		ImGui::TextUnformatted( latency_text.c_str() );
 		ImGui::End();
 
@@ -445,12 +446,19 @@ int main( int argc, const char** argv )
 		std::vector<std::string> labels;
 		labels.reserve( data.size() );
 
-		if( data.size() )
+		if( data.size() || cpu_data.size() )
 		{
 			for( auto& p: data )
 			{
 				labels.push_back( p.first );
 				interactions.push_back( p.second );
+			}
+
+			// TODO: separate discrete cpu stream vs. floating
+			for( auto&& kv: cpu_data )
+			{
+				labels.push_back( kv.first );
+				interactions.push_back( static_cast<int>( kv.second ) );
 			}
 
 			auto cur_max = std::max_element( std::begin( interactions ),
@@ -618,26 +626,39 @@ int main( int argc, const char** argv )
 			{
 				case atop::Frameworks::tflite:
 				{
+					std::string nnapi_accelerator_name
+					    = ( delegate_rb == 4 )
+					          ? "qti-dsp"
+					          : ( ( delegate_rb == 5 )
+					                  ? "qti-gpu"
+					                  : ( ( delegate_rb == 6 ) ? "paintbox"
+					                                           : "" ) );
+					bool use_nnapi
+					    = ( delegate_rb == 2 || delegate_rb == 4
+					        || delegate_rb == 5 || delegate_rb == 6 );
+
 					// TODO: tflite benchmark tool has undocumented CSV
 					// export flag "profiling_output_csv_file". Requires
 					// enable_op_profiling
 					benchmark_futures_q.emplace( atop::run_tflite_benchmark(
 					    unzip_imgui_models( models ),
-					    {{"num_threads", std::to_string( num_cpu_threads )},
-					     {"warmup_runs", std::to_string( num_warmup_runs )},
-					     {"num_runs", std::to_string( num_runs )},
-					     {"hexagon_profiling", "false"},
-					     {"enable_op_profiling", "false"},
-					     // cpu fallback false => disable nnapi cpu true
-					     {"disable_nnapi_cpu",
-					      atop::util::bool2string( !cpu_fallback
-					                               && delegate_rb == 2 )},
-					     {"use_hexagon",
-					      atop::util::bool2string( delegate_rb == 0 )},
-					     {"use_gpu",
-					      atop::util::bool2string( delegate_rb == 1 )},
-					     {"use_nnapi",
-					      atop::util::bool2string( delegate_rb == 2 )}},
+					    {
+					        {"num_threads", std::to_string( num_cpu_threads )},
+					        {"warmup_runs", std::to_string( num_warmup_runs )},
+					        {"num_runs", std::to_string( num_runs )},
+					        {"hexagon_profiling", "false"},
+					        {"enable_op_profiling", "false"},
+					        // cpu fallback false => disable nnapi cpu true
+					        {"disable_nnapi_cpu",
+					         atop::util::bool2string( !cpu_fallback
+					                                  && use_nnapi )},
+					        {"use_hexagon",
+					         atop::util::bool2string( delegate_rb == 0 )},
+					        {"use_gpu",
+					         atop::util::bool2string( delegate_rb == 1 )},
+					        {"use_nnapi", atop::util::bool2string( use_nnapi )},
+					        {"nnapi_accelerator_name", nnapi_accelerator_name},
+					    },
 					    num_procs ) );
 				}
 				break;
@@ -687,6 +708,13 @@ int main( int argc, const char** argv )
 				ImGui::RadioButton( "NNAPI", &delegate_rb, 2 );
 				ImGui::SameLine();
 				ImGui::RadioButton( "CPU Only", &delegate_rb, 3 );
+
+				ImGui::RadioButton( "nnapi-dsp", &delegate_rb, 4 );
+				ImGui::SameLine();
+				ImGui::RadioButton( "nnapi-gpu", &delegate_rb, 5 );
+				ImGui::SameLine();
+				ImGui::RadioButton( "nnapi-paintbox", &delegate_rb, 6 );
+
 				ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
 				ImGui::InputInt( "Runs", &num_runs );
 				ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
@@ -729,6 +757,10 @@ int main( int argc, const char** argv )
 		ImGui::SFML::Render( window );
 		window.display();
 	}
+
+	exiting = true;
+	streamer_th.join();
+	cpu_th.join();
 
 	ImGui::SFML::Shutdown();
 

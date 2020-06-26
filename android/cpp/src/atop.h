@@ -138,6 +138,8 @@ class IoctlDmesgStreamer
 	std::map<std::string, int> const& interactions( bool check_full_log = false,
 	                                                double threshold = 20.0 );
 
+	float get_duration() const { return this->stream_latency; }
+
 	DmesgProbes utilization_probe;
 	bool is_data_fresh;
 
@@ -146,6 +148,9 @@ class IoctlDmesgStreamer
 	ioctl_dmesg_t latest_data;
 	std::map<std::string, int> latest_interactions;
 	std::vector<std::string> probes;
+
+	// Latency of last "interactions" call
+	float stream_latency;
 };
 
 class CpuUtilizationStreamer
