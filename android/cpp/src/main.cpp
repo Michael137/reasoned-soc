@@ -574,7 +574,7 @@ int main( int argc, const char** argv )
 		bool tflite_hexagon_selected
 		    = ( frameworks[static_cast<size_t>( sel_framework )]
 		        == atop::framework2string( atop::Frameworks::tflite ) )
-		      && ( delegate_rb == 0 );
+		      && ( delegate_rb == 0 /* hexagon dsp delegate */ || delegate_rb == 4 /* qti-dsp */ );
 
 		if( ImGui::ListBoxHeader( "Models" ) )
 		{
