@@ -732,13 +732,12 @@ void atop::summarize_benchmark_output( shell_out_t const& out,
 	};
 }
 
-void atop::ioctl_breakdown_info(
+static void ioctl_breakdown_impl(
     std::map<std::string, std::map<std::string, int>>& breakdown,
-    atop::shell_out_t const& data )
+    atop::shell_out_t const& data, std::string const& pattern_str )
 {
-	std::regex pattern{
-	    R"(\[[0-9\.\s*]+\] INFO: \(app: ([a-zA-Z_:@\-0-9]+)\) ([a-zA-Z\s_\/\-0-9]+))"};
 	std::smatch match;
+	std::regex pattern{pattern_str};
 
 	for( auto&& line: data )
 	{
@@ -761,35 +760,33 @@ void atop::ioctl_breakdown_info(
 	}
 }
 
-void atop::ioctl_breakdown_ioctl(
+void atop::ioctl_breakdown(
     std::map<std::string, std::map<std::string, int>>& breakdown,
-    atop::shell_out_t const& data )
+    atop::shell_out_t const& data, atop::DmesgProbes probe )
 {
-	std::smatch match;
-	std::string tag_pattern = R"([\(\)a-z\s:0-9\-_]*)";
-	std::string cmd_pattern = R"(\(cmd: ([a-zA-Z0-9\s]+) \[[0-9]+\]\))";
-	std::string app_pattern = tag_pattern + R"(\(app: ([a-zA-Z_:@\-0-9]+)\))"
-	                          + " " + cmd_pattern + tag_pattern;
-	auto pattern_str = R"(\[[0-9\.\s*]+\] IOCTL [a-zA-Z]+)" + app_pattern;
-	std::regex pattern{pattern_str};
-
-	for( auto&& line: data )
+	switch( probe )
 	{
-		if( std::regex_search( line, match, pattern ) )
+		case atop::DmesgProbes::IOCTL:
 		{
-			std::string app = match[1].str();
-			std::string cmd = match[2].str();
-			// Application in map?
-			if( auto it{breakdown.find( app )}; it == std::end( breakdown ) )
-				breakdown.insert(
-				    std::pair<std::string, std::map<std::string, int>>( app,
-				                                                        {} ) );
-
-			if( auto ioctl_it{breakdown[app].find( cmd )};
-			    ioctl_it == std::end( breakdown[app] ) )
-				breakdown[app].insert( std::pair<std::string, int>( cmd, 0 ) );
-
-			breakdown[app][cmd]++;
+			std::string tag_pattern = R"([\(\)a-z\s:0-9\-_]*)";
+			std::string cmd_pattern = R"(\(cmd: ([a-zA-Z0-9\s]+) \[[0-9]+\]\))";
+			std::string app_pattern = tag_pattern
+			                          + R"(\(app: ([a-zA-Z_:@\-0-9]+)\))" + " "
+			                          + cmd_pattern + tag_pattern;
+			auto pattern_str
+			    = R"(\[[0-9\.\s*]+\] IOCTL [a-zA-Z]+)" + app_pattern;
+			ioctl_breakdown_impl( breakdown, data, pattern_str );
 		}
+		break;
+		case atop::DmesgProbes::INFO:
+		{
+			auto pattern_str
+			    = R"(\[[0-9\.\s*]+\] INFO: \(app: ([a-zA-Z_:@\-0-9]+)\) ([a-zA-Z\s_\/\-0-9]+))";
+			ioctl_breakdown_impl( breakdown, data, pattern_str );
+		}
+		break;
+		default:
+			throw atop::util::NotImplementedException(
+			    "Breakdown for given probe not implemented" );
 	}
 }

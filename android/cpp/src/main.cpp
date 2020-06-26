@@ -511,12 +511,14 @@ int main( int argc, const char** argv )
 
 		if( streamer.is_data_fresh && streamer_updated )
 		{
-			atop::ioctl_breakdown_ioctl(
+			atop::ioctl_breakdown(
 			    ioctl_breakdown,
-			    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::IOCTL )] );
-			atop::ioctl_breakdown_info(
+			    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::IOCTL )],
+			    atop::DmesgProbes::IOCTL );
+			atop::ioctl_breakdown(
 			    ioctl_breakdown,
-			    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::INFO )] );
+			    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::INFO )],
+			    atop::DmesgProbes::INFO );
 		}
 		ShowIoctlBreakdown( ioctl_breakdown, num_runs );
 

@@ -187,13 +187,9 @@ struct BenchmarkStats
 void summarize_benchmark_output( shell_out_t const&, atop::Frameworks,
                                  BenchmarkStats& );
 
-void ioctl_breakdown_info(
+void ioctl_breakdown(
     std::map<std::string, std::map<std::string, int>>& breakdown,
-    shell_out_t const& data );
-
-void ioctl_breakdown_ioctl(
-    std::map<std::string, std::map<std::string, int>>& breakdown,
-    shell_out_t const& data );
+    atop::shell_out_t const& data, atop::DmesgProbes probe );
 
 } // namespace atop
 
