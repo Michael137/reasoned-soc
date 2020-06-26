@@ -591,26 +591,39 @@ int main( int argc, const char** argv )
 			{
 				case atop::Frameworks::tflite:
 				{
+					std::string nnapi_accelerator_name
+					    = ( delegate_rb == 4 )
+					          ? "qti-dsp"
+					          : ( ( delegate_rb == 5 )
+					                  ? "qti-gpu"
+					                  : ( ( delegate_rb == 6 ) ? "paintbox"
+					                                           : "" ) );
+					bool use_nnapi
+					    = ( delegate_rb == 2 || delegate_rb == 4
+					        || delegate_rb == 5 || delegate_rb == 6 );
+
 					// TODO: tflite benchmark tool has undocumented CSV
 					// export flag "profiling_output_csv_file". Requires
 					// enable_op_profiling
 					benchmark_futures_q.emplace( atop::run_tflite_benchmark(
 					    unzip_imgui_models( models ),
-					    {{"num_threads", std::to_string( num_cpu_threads )},
-					     {"warmup_runs", std::to_string( num_warmup_runs )},
-					     {"num_runs", std::to_string( num_runs )},
-					     {"hexagon_profiling", "false"},
-					     {"enable_op_profiling", "false"},
-					     // cpu fallback false => disable nnapi cpu true
-					     {"disable_nnapi_cpu",
-					      atop::util::bool2string( !cpu_fallback
-					                               && delegate_rb == 2 )},
-					     {"use_hexagon",
-					      atop::util::bool2string( delegate_rb == 0 )},
-					     {"use_gpu",
-					      atop::util::bool2string( delegate_rb == 1 )},
-					     {"use_nnapi",
-					      atop::util::bool2string( delegate_rb == 2 )}},
+					    {
+					        {"num_threads", std::to_string( num_cpu_threads )},
+					        {"warmup_runs", std::to_string( num_warmup_runs )},
+					        {"num_runs", std::to_string( num_runs )},
+					        {"hexagon_profiling", "false"},
+					        {"enable_op_profiling", "false"},
+					        // cpu fallback false => disable nnapi cpu true
+					        {"disable_nnapi_cpu",
+					         atop::util::bool2string( !cpu_fallback
+					                                  && use_nnapi )},
+					        {"use_hexagon",
+					         atop::util::bool2string( delegate_rb == 0 )},
+					        {"use_gpu",
+					         atop::util::bool2string( delegate_rb == 1 )},
+					        {"use_nnapi", atop::util::bool2string( use_nnapi )},
+					        {"nnapi_accelerator_name", nnapi_accelerator_name},
+					    },
 					    num_procs ) );
 				}
 				break;
@@ -660,6 +673,13 @@ int main( int argc, const char** argv )
 				ImGui::RadioButton( "NNAPI", &delegate_rb, 2 );
 				ImGui::SameLine();
 				ImGui::RadioButton( "CPU Only", &delegate_rb, 3 );
+
+				ImGui::RadioButton( "nnapi-dsp", &delegate_rb, 4 );
+				ImGui::SameLine();
+				ImGui::RadioButton( "nnapi-gpu", &delegate_rb, 5 );
+				ImGui::SameLine();
+				ImGui::RadioButton( "nnapi-paintbox", &delegate_rb, 6 );
+
 				ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
 				ImGui::InputInt( "Runs", &num_runs );
 				ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
