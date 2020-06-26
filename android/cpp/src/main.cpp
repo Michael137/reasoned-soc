@@ -236,6 +236,25 @@ static void ShowBenchmarkSummary( bool* popen,
 	ImGui::End();
 }
 
+static void ShowIoctlBreakdown(
+    std::map<std::string, std::map<std::string, int>> const& breakdown,
+    int num_runs )
+{
+	ImGui::Begin( "Breakdown" );
+	for( auto&& p: breakdown )
+	{
+		ImGui::TextUnformatted( fmt::format( "{0}: ", p.first ).c_str() );
+		for( auto&& cmd_p: p.second )
+		{
+			ImGui::TextUnformatted(
+			    fmt::format( "\t{0}: {1}", cmd_p.first,
+			                 static_cast<float>( cmd_p.second ) / num_runs )
+			        .c_str() );
+		}
+	}
+	ImGui::End();
+}
+
 int main( int argc, const char** argv )
 {
 	std::map<std::string, docopt::value> args = docopt::docopt(
@@ -287,6 +306,8 @@ int main( int argc, const char** argv )
 	static bool bench_summary_cb   = true;
 
 	static atop::BenchmarkStats bench_summary;
+	static std::map<std::string, std::map<std::string, int>> ioctl_breakdown;
+	;
 
 	atop::IoctlDmesgStreamer streamer;
 
@@ -496,6 +517,19 @@ int main( int argc, const char** argv )
 
 		ImGui::End();
 
+		if( streamer.is_data_fresh && streamer_updated )
+		{
+			atop::ioctl_breakdown(
+			    ioctl_breakdown,
+			    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::IOCTL )],
+			    atop::DmesgProbes::IOCTL );
+			atop::ioctl_breakdown(
+			    ioctl_breakdown,
+			    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::INFO )],
+			    atop::DmesgProbes::INFO );
+		}
+		ShowIoctlBreakdown( ioctl_breakdown, num_runs );
+
 		ShowBenchmarkSummary( &bench_summary_cb, bench_summary );
 
 		if( benchmark_futures_q.size() > 0
@@ -586,6 +620,7 @@ int main( int argc, const char** argv )
 
 		if( ImGui::Button( "Run" ) )
 		{
+			ioctl_breakdown.clear();
 			switch( atop::string2framework(
 			    frameworks[static_cast<size_t>( sel_framework )] ) )
 			{

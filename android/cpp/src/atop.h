@@ -6,6 +6,7 @@
 #include <future>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include <fmt/format.h>
@@ -74,13 +75,17 @@ enum class DmesgProbes : int
 {
 	IOCTL = 0,
 	TIME  = 1,
+	INFO  = 2,
 
 	// End marker; do not add anything below
-	LAST = 2
+	// Increment for each new entry
+	LAST = 3
 };
 
 std::map<std::string, DmesgProbes> const dmesg_probes_table
-    = {{"IOCTL", DmesgProbes::IOCTL}, {"TIME", DmesgProbes::TIME}};
+    = {{"IOCTL", DmesgProbes::IOCTL},
+       {"TIME", DmesgProbes::TIME},
+       {"INFO", DmesgProbes::INFO}};
 
 #define PROBE_IDX( probe_ ) static_cast<size_t>( ( probe_ ) )
 
@@ -117,7 +122,8 @@ class IoctlDmesgStreamer
    public:
 	explicit IoctlDmesgStreamer( std::vector<std::string> const& probes
 	                             = {dmesgProbes2string( DmesgProbes::IOCTL ),
-	                                dmesgProbes2string( DmesgProbes::TIME )} );
+	                                dmesgProbes2string( DmesgProbes::TIME ),
+	                                dmesgProbes2string( DmesgProbes::INFO )} );
 	~IoctlDmesgStreamer()                           = default;
 	IoctlDmesgStreamer( IoctlDmesgStreamer const& ) = delete;
 	IoctlDmesgStreamer( IoctlDmesgStreamer&& )      = delete;
@@ -185,6 +191,10 @@ struct BenchmarkStats
 
 void summarize_benchmark_output( shell_out_t const&, atop::Frameworks,
                                  BenchmarkStats& );
+
+void ioctl_breakdown(
+    std::map<std::string, std::map<std::string, int>>& breakdown,
+    atop::shell_out_t const& data, atop::DmesgProbes probe );
 
 } // namespace atop
 
