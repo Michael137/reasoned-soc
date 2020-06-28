@@ -130,43 +130,43 @@ long kgsl_ioctl_copy_out(unsigned int kernel_cmd, unsigned int user_cmd,
 
 static char* decode_ioc(unsigned int nr) {
 	switch(nr) {
-		case	IOCTL_KGSL_DEVICE_GETPROPERTY                  : return "device_getproperty";
-		case	IOCTL_KGSL_DEVICE_WAITTIMESTAMP_CTXTID         : return "device_waittimestamp_ctxid";
-		case	IOCTL_KGSL_RINGBUFFER_ISSUEIBCMDS              : return "rb_issue_ibcmds";
-		case	IOCTL_KGSL_SUBMIT_COMMANDS                     : return "submit_commands";
-		case	IOCTL_KGSL_CMDSTREAM_READTIMESTAMP_CTXTID      : return "cmdstream_readtimestamp_ctxtid";
-		case	IOCTL_KGSL_CMDSTREAM_FREEMEMONTIMESTAMP_CTXTID : return "cmdstream_freememontimestamp_ctxtid";
-		case	IOCTL_KGSL_DRAWCTXT_CREATE                     : return "drawctxt_create";
-		case	IOCTL_KGSL_DRAWCTXT_DESTROY                    : return "drawctxt_destroy";
-		case	IOCTL_KGSL_MAP_USER_MEM                        : return "map_user_mem";
-		case	IOCTL_KGSL_SHAREDMEM_FROM_PMEM                 : return "map_user_pmem";
-		case	IOCTL_KGSL_SHAREDMEM_FREE                      : return "sharedmem_free";
-		case	IOCTL_KGSL_SHAREDMEM_FLUSH_CACHE               : return "sharedmem_flush_cache";
-		case	IOCTL_KGSL_GPUMEM_ALLOC                        : return "gpumem_alloc";
-		case	IOCTL_KGSL_TIMESTAMP_EVENT                     : return "timestamp_event";
-		case	IOCTL_KGSL_SETPROPERTY                         : return "device_setproperty";
-		case	IOCTL_KGSL_GPUMEM_ALLOC_ID                     : return "gpumem_alloc_id";
-		case	IOCTL_KGSL_GPUMEM_FREE_ID                      : return "gpumem_free_id";
-		case	IOCTL_KGSL_GPUMEM_GET_INFO                     : return "gpumem_get_info";
-		case	IOCTL_KGSL_GPUMEM_SYNC_CACHE                   : return "gpumem_sync_cache";
-		case	IOCTL_KGSL_GPUMEM_SYNC_CACHE_BULK              : return "gpumem_sync_cache_bulk";
-		case	IOCTL_KGSL_SYNCSOURCE_CREATE                   : return "syncsource_create";
-		case	IOCTL_KGSL_SYNCSOURCE_DESTROY                  : return "syncsource_destroy";
-		case	IOCTL_KGSL_SYNCSOURCE_CREATE_FENCE             : return "syncsource_create_fence";
-		case	IOCTL_KGSL_SYNCSOURCE_SIGNAL_FENCE             : return "syncsource_signal_fence";
-		case	IOCTL_KGSL_GPUOBJ_ALLOC                        : return "gpuobj_alloc";
-		case	IOCTL_KGSL_GPUOBJ_FREE                         : return "gpuobj_free";
-		case	IOCTL_KGSL_GPUOBJ_INFO                         : return "gpuobj_info";
-		case	IOCTL_KGSL_GPUOBJ_IMPORT                       : return "gpuobj_import";
-		case	IOCTL_KGSL_GPUOBJ_SYNC                         : return "gpuobj_sync";
-		case	IOCTL_KGSL_GPU_COMMAND                         : return "gpu_command";
-		case	IOCTL_KGSL_GPUOBJ_SET_INFO                     : return "gpuobj_set_info";
-		case	IOCTL_KGSL_SPARSE_PHYS_ALLOC                   : return "sparse_phys_alloc";
-		case	IOCTL_KGSL_SPARSE_PHYS_FREE                    : return "sparse_phys_free";
-		case	IOCTL_KGSL_SPARSE_VIRT_ALLOC                   : return "sparse_virt_alloc";
-		case	IOCTL_KGSL_SPARSE_VIRT_FREE                    : return "sparse_virt_free";
-		case	IOCTL_KGSL_SPARSE_BIND                         : return "sparse_bind";
-		case	IOCTL_KGSL_GPU_SPARSE_COMMAND                  : return "gpu_sparse_command";
+		case IOCTL_KGSL_DEVICE_GETPROPERTY                  : return "device_getproperty";
+		case IOCTL_KGSL_DEVICE_WAITTIMESTAMP_CTXTID         : return "device_waittimestamp_ctxid";
+		case IOCTL_KGSL_RINGBUFFER_ISSUEIBCMDS              : return "rb_issue_ibcmds";
+		case IOCTL_KGSL_SUBMIT_COMMANDS                     : return "submit_commands";
+		case IOCTL_KGSL_CMDSTREAM_READTIMESTAMP_CTXTID      : return "cmdstream_readtimestamp_ctxtid";
+		case IOCTL_KGSL_CMDSTREAM_FREEMEMONTIMESTAMP_CTXTID : return "cmdstream_freememontimestamp_ctxtid";
+		case IOCTL_KGSL_DRAWCTXT_CREATE                     : return "drawctxt_create";
+		case IOCTL_KGSL_DRAWCTXT_DESTROY                    : return "drawctxt_destroy";
+		case IOCTL_KGSL_MAP_USER_MEM                        : return "map_user_mem";
+		case IOCTL_KGSL_SHAREDMEM_FROM_PMEM                 : return "map_user_pmem";
+		case IOCTL_KGSL_SHAREDMEM_FREE                      : return "sharedmem_free";
+		case IOCTL_KGSL_SHAREDMEM_FLUSH_CACHE               : return "sharedmem_flush_cache";
+		case IOCTL_KGSL_GPUMEM_ALLOC                        : return "gpumem_alloc";
+		case IOCTL_KGSL_TIMESTAMP_EVENT                     : return "timestamp_event";
+		case IOCTL_KGSL_SETPROPERTY                         : return "device_setproperty";
+		case IOCTL_KGSL_GPUMEM_ALLOC_ID                     : return "gpumem_alloc_id";
+		case IOCTL_KGSL_GPUMEM_FREE_ID                      : return "gpumem_free_id";
+		case IOCTL_KGSL_GPUMEM_GET_INFO                     : return "gpumem_get_info";
+		case IOCTL_KGSL_GPUMEM_SYNC_CACHE                   : return "gpumem_sync_cache";
+		case IOCTL_KGSL_GPUMEM_SYNC_CACHE_BULK              : return "gpumem_sync_cache_bulk";
+		case IOCTL_KGSL_SYNCSOURCE_CREATE                   : return "syncsource_create";
+		case IOCTL_KGSL_SYNCSOURCE_DESTROY                  : return "syncsource_destroy";
+		case IOCTL_KGSL_SYNCSOURCE_CREATE_FENCE             : return "syncsource_create_fence";
+		case IOCTL_KGSL_SYNCSOURCE_SIGNAL_FENCE             : return "syncsource_signal_fence";
+		case IOCTL_KGSL_GPUOBJ_ALLOC                        : return "gpuobj_alloc";
+		case IOCTL_KGSL_GPUOBJ_FREE                         : return "gpuobj_free";
+		case IOCTL_KGSL_GPUOBJ_INFO                         : return "gpuobj_info";
+		case IOCTL_KGSL_GPUOBJ_IMPORT                       : return "gpuobj_import";
+		case IOCTL_KGSL_GPUOBJ_SYNC                         : return "gpuobj_sync";
+		case IOCTL_KGSL_GPU_COMMAND                         : return "gpu_command";
+		case IOCTL_KGSL_GPUOBJ_SET_INFO                     : return "gpuobj_set_info";
+		case IOCTL_KGSL_SPARSE_PHYS_ALLOC                   : return "sparse_phys_alloc";
+		case IOCTL_KGSL_SPARSE_PHYS_FREE                    : return "sparse_phys_free";
+		case IOCTL_KGSL_SPARSE_VIRT_ALLOC                   : return "sparse_virt_alloc";
+		case IOCTL_KGSL_SPARSE_VIRT_FREE                    : return "sparse_virt_free";
+		case IOCTL_KGSL_SPARSE_BIND                         : return "sparse_bind";
+		case IOCTL_KGSL_GPU_SPARSE_COMMAND                  : return "gpu_sparse_command";
 		default: return "INVALID";
 	}
 }
@@ -183,9 +183,9 @@ long kgsl_ioctl_helper(struct file *filep, unsigned int cmd, unsigned long arg,
 			DEFAULT_RATELIMIT_INTERVAL,
 			DEFAULT_RATELIMIT_BURST);
 
-	char* decoded = decode_ioc(nr);
+	char* decoded = decode_ioc(cmd);
 
-	printk(KERN_ALERT "IOCTL kgsl: (app: %s) (device: %s) %s\n", current->comm, dev_priv->device->name, decoded);
+	printk(KERN_ALERT "IOCTL kgsl: (app: %s) (device: %s) %s\n", current->comm, dev_priv->device->name, decoded1);
 
 	if (nr >= len || cmds[nr].func == NULL)
 		return -ENOIOCTLCMD;
