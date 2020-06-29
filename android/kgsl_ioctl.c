@@ -185,7 +185,7 @@ long kgsl_ioctl_helper(struct file *filep, unsigned int cmd, unsigned long arg,
 
 	char* decoded = decode_ioc(cmd);
 
-	printk(KERN_ALERT "IOCTL kgsl: (app: %s) (device: %s) %s\n", current->comm, dev_priv->device->name, decoded);
+	printk(KERN_ALERT "IOCTL kgsl: (app: %s) (cmd: %s [%lu]) (device: %s)\n", current->comm, decoded, cmd, dev_priv->device->name);
 
 	if (nr >= len || cmds[nr].func == NULL)
 		return -ENOIOCTLCMD;

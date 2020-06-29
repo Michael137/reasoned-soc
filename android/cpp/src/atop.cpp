@@ -774,7 +774,7 @@ void atop::ioctl_breakdown(
 		case atop::DmesgProbes::IOCTL:
 		{
 			std::string tag_pattern = R"([\(\)a-z\s:0-9\-_]*)";
-			std::string cmd_pattern = R"(\(cmd: ([a-zA-Z0-9\s]+) \[[0-9]+\]\))";
+			std::string cmd_pattern = R"(\(cmd: ([a-zA-Z0-9\s_]+) \[[0-9]+\]\))";
 			std::string app_pattern = tag_pattern
 			                          + R"(\(app: ([a-zA-Z_:@\-0-9]+)\))" + " "
 			                          + cmd_pattern + tag_pattern;
