@@ -23,3 +23,5 @@ graph_info.json
 *.swp
 
 imgui.ini
+/atop.cbp
+/.idea/
