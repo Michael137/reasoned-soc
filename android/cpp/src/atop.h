@@ -196,6 +196,8 @@ void ioctl_breakdown(
     std::map<std::string, std::map<std::string, int>>& breakdown,
     atop::shell_out_t const& data, atop::DmesgProbes probe );
 
+void update_tflite_offload( atop::shell_out_t const& data, atop::BenchmarkStats& stats );
+
 } // namespace atop
 
 #endif // ATOP_H_IN

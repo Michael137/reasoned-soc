@@ -645,9 +645,9 @@ static void summarize_tflite_benchmark_output( atop::shell_out_t const& out,
 				    = strtoull( match[1].str().c_str(), &end, 10 );
 				// Inference time in tflite benchmark doesn't include
 				// pre-/post-processing
+                // TODO: account for offload?
 				stats.stats["inference"]
-				    = strtoull( match[3].str().c_str(), &end, 10 )
-				      - stats.stats["offload"];
+				    = strtoull( match[3].str().c_str(), &end, 10 );
 			}
 		}
 	}
@@ -794,4 +794,53 @@ void atop::ioctl_breakdown(
 			throw atop::util::NotImplementedException(
 			    "Breakdown for given probe not implemented" );
 	}
+}
+
+void atop::update_tflite_offload( atop::shell_out_t const& data,
+                                  atop::BenchmarkStats& stats )
+{
+  char* end;
+  // Matches, e.g., [123.123] TIME ioctl (s): (app: myapp) (pid: 123) getinfo:
+  // 0.009123
+  std::string tag_pattern = R"([\(\)a-z\s:0-9\-_]*)";
+  std::string app_pattern
+      = tag_pattern
+        + R"(\(app: (benchmark_model|neuralnetworks@|HwBinder:[0-9]+)\))"
+        + tag_pattern;
+  auto pattern_str = R"(\[[0-9\.\s*]+\] TIME (ioctl|internal_invoke))"
+                     + app_pattern + R"(: ([0-9\.]+))";
+  std::regex pattern{pattern_str};
+  std::smatch match;
+  double ioctl_time  = 0.0;
+  double invoke_time = 0.0;
+  for( auto& e: data )
+  {
+    if( std::regex_search( e, match, pattern ) )
+    {
+      if( match[1] == "ioctl" )
+        ioctl_time += strtod( match[3].str().c_str(), &end );
+      else if( match[1] == "internal_invoke" )
+        invoke_time += strtod( match[3].str().c_str(), &end );
+    }
+  }
+
+  // Convert seconds to milliseconds
+  auto offload_t = ioctl_time - invoke_time;
+
+  if( offload_t >= 0 )
+  {
+    if( auto it{stats.stats.find( "offload" )};
+        it != std::end( stats.stats ) )
+      ( *it ).second += static_cast<uint64_t>(offload_t * 1.0e9);
+    else
+      stats.stats.insert( std::pair<std::string, decltype( offload_t )>(
+          "offload", static_cast<uint64_t>(offload_t * 1.0e9 ) ));
+  }
+  else
+  {
+    atop::logger::verbose_info( fmt::format(
+        "{0}:{1}: offload calculation negative. Usually this means that a "
+        "daemon process start has been included in the calculation",
+        __FUNCTION__, __LINE__ ) );
+  }
 }

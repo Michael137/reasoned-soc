@@ -222,18 +222,28 @@ struct DmesgLog
 	}
 };
 
+// TODO: num_runs could be passed using BenchmarkInfo struct
 static void ShowBenchmarkSummary( bool* popen,
-                                  atop::BenchmarkStats const& stats )
+                                  atop::BenchmarkStats const& stats,
+                                  int num_runs, std::string const& fr )
 {
-	ImGui::Begin( "Benchmark Summary", popen );
-	for( auto&& p: stats.stats )
-	{
-		ImGui::TextUnformatted(
-		    fmt::format( "{0}: {1} ms", p.first,
-		                 static_cast<double>( p.second ) / 1.0e3 )
-		        .c_str() );
-	}
-	ImGui::End();
+    ImGui::Begin( "Benchmark Summary", popen );
+    for( auto&& p: stats.stats )
+        {
+            if( fr == "tflite" && p.first == "offload" )
+                {
+                    ImGui::TextUnformatted(
+                        fmt::format( "{0}: {1} ms", p.first,
+                                     p.second / static_cast<double>( num_runs ) / 1.0e6 )
+                            .c_str() );
+                }
+            else
+                ImGui::TextUnformatted(
+                    fmt::format( "{0}: {1} ms", p.first,
+                                 static_cast<double>( p.second ) / 1.0e3 )
+                        .c_str() );
+        }
+    ImGui::End();
 }
 
 static void ShowIoctlBreakdown(
@@ -307,7 +317,6 @@ int main( int argc, const char** argv )
 
 	static atop::BenchmarkStats bench_summary;
 	static std::map<std::string, std::map<std::string, int>> ioctl_breakdown;
-	;
 
 	atop::IoctlDmesgStreamer streamer;
 
@@ -327,7 +336,7 @@ int main( int argc, const char** argv )
 
 	static int workloads_running = 0;
 
-	static bool streamer_updated = false;
+	static bool waiting_for_consumption = false;
 
 	static std::atomic<bool> exiting = false;
 
@@ -376,10 +385,8 @@ int main( int argc, const char** argv )
 		if( !utilization_paused && ioctl_dmesg_fifo.data_avail() )
 		{
 			data             = ioctl_dmesg_fifo.pop_data();
-			streamer_updated = true;
+			waiting_for_consumption = true;
 		}
-		else
-			streamer_updated = false;
 
 		if( !utilization_paused && cpu_fifo.data_avail() )
 			// TODO: measure stream CPU latency
@@ -517,7 +524,7 @@ int main( int argc, const char** argv )
 
 		ImGui::End();
 
-		if( streamer.is_data_fresh && streamer_updated )
+		if( streamer.is_data_fresh && waiting_for_consumption )
 		{
 			atop::ioctl_breakdown(
 			    ioctl_breakdown,
@@ -527,10 +534,14 @@ int main( int argc, const char** argv )
 			    ioctl_breakdown,
 			    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::INFO )],
 			    atop::DmesgProbes::INFO );
+
+            atop::logger::warn( "Updating offload" );
+                atop::update_tflite_offload(
+                    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::TIME )],
+                    bench_summary );
 		}
 		ShowIoctlBreakdown( ioctl_breakdown, num_runs );
-
-		ShowBenchmarkSummary( &bench_summary_cb, bench_summary );
+        ShowBenchmarkSummary( &bench_summary_cb, bench_summary, num_runs, frameworks[static_cast<size_t>( sel_framework )]);
 
 		if( benchmark_futures_q.size() > 0
 		    && is_ready<atop::shell_out_t>( benchmark_futures_q.front() ) )
@@ -620,6 +631,7 @@ int main( int argc, const char** argv )
 
 		if( ImGui::Button( "Run" ) )
 		{
+            bench_summary.stats.clear();
 			ioctl_breakdown.clear();
 			switch( atop::string2framework(
 			    frameworks[static_cast<size_t>( sel_framework )] ) )
@@ -739,7 +751,7 @@ int main( int argc, const char** argv )
 		// TODO: add option to change log to logcat, stdout, etc.
 		ImGui::SetNextWindowSize( ImVec2( 500, 400 ), ImGuiCond_FirstUseEver );
 		ImGui::Begin( "Dmesg Log", &show_log_b );
-		if( streamer.is_data_fresh && streamer_updated )
+		if( streamer.is_data_fresh && waiting_for_consumption )
 		{
 			auto data_to_log
 			    = streamer.get_data()[PROBE_IDX( streamer.utilization_probe )];
@@ -752,6 +764,10 @@ int main( int argc, const char** argv )
 		// Actually call in the regular Log helper (which will Begin() into
 		// the same window as we just did)
 		log.Draw( "Dmesg Log", &show_log_b );
+
+        // Fresh data has been consumed by all components in this iteration
+        if(waiting_for_consumption && streamer.is_data_fresh)
+            waiting_for_consumption = false;
 
 		window.clear();
 		ImGui::SFML::Render( window );
