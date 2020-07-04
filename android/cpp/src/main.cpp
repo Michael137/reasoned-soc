@@ -35,18 +35,6 @@ static auto vector_getter = []( void* vec, int idx, const char** out_text ) {
 	return true;
 };
 
-bool ListBox( const char* label, int* currIndex,
-              std::vector<std::string>& values )
-{
-	if( values.empty() )
-	{
-		return false;
-	}
-	return ImGui::ListBox( label, currIndex, vector_getter,
-	                       static_cast<void*>( &values ),
-	                       static_cast<int>( values.size() ) );
-}
-
 bool ComboBox( const char* label, int* currIndex,
                std::vector<std::string>& values )
 {
