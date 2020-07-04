@@ -343,7 +343,7 @@ int main( int argc, const char** argv )
 
 	static int workloads_running = 0;
 
-	static bool streamer_updated = false;
+	static bool data_got_consumed = false;
 
 	static std::atomic<bool> exiting = false;
 
@@ -386,16 +386,15 @@ int main( int argc, const char** argv )
 				atop::logger::verbose_info(
 				    "Window close requested...exiting" );
 				window.close();
+                                exiting = true;
 			}
 		}
 
 		if( !utilization_paused && ioctl_dmesg_fifo.data_avail() )
 		{
 			data             = ioctl_dmesg_fifo.pop_data();
-			streamer_updated = true;
+			data_got_consumed = false;
 		}
-		else
-			streamer_updated = false;
 
 		if( !utilization_paused && cpu_fifo.data_avail() )
 			// TODO: measure stream CPU latency
@@ -533,7 +532,7 @@ int main( int argc, const char** argv )
 
 		ImGui::End();
 
-		if( streamer.is_data_fresh && streamer_updated )
+		if( streamer.is_data_fresh && !data_got_consumed )
 		{
 			atop::ioctl_breakdown(
 			    ioctl_breakdown,
@@ -761,7 +760,7 @@ int main( int argc, const char** argv )
 		// TODO: add option to change log to logcat, stdout, etc.
 		ImGui::SetNextWindowSize( ImVec2( 500, 400 ), ImGuiCond_FirstUseEver );
 		ImGui::Begin( "Dmesg Log", &show_log_b );
-		if( streamer.is_data_fresh && streamer_updated )
+		if( streamer.is_data_fresh && !data_got_consumed )
 		{
 			auto data_to_log
 			    = streamer.get_data()[PROBE_IDX( streamer.utilization_probe )];
@@ -775,12 +774,14 @@ int main( int argc, const char** argv )
 		// the same window as we just did)
 		log.Draw( "Dmesg Log", &show_log_b );
 
+                // One iteration => data in streamer has been processed
+                data_got_consumed = true;
+
 		window.clear();
 		ImGui::SFML::Render( window );
 		window.display();
 	}
 
-	exiting = true;
 	streamer_th.join();
 	cpu_th.join();
 
