@@ -84,6 +84,22 @@ unzip_imgui_models( std::vector<std::pair<std::string, bool>> const& vec )
 	return res;
 }
 
+static void toggle_driver_logging()
+{
+  auto output = atop::check_console_output("adb shell getprop debug.nn.vlog");
+  if(output.size() > 0)
+  {
+    int prop_val = 0;
+    auto prop = output[0];
+    if(!prop.empty())
+      prop_val = std::stoi(prop);
+
+    // Toggle
+    LOG(fmt::format("Setting debug.nn.vlog from {0} to {1}", prop_val, 1 - prop_val));
+    atop::check_console_output(fmt::format("adb shell setprop debug.nn.vlog {0}", 1 - prop_val));
+  }
+}
+
 // Until is_ready() is in the C++ standard use this to check
 // whether a std::future result is ready
 template<typename R> bool is_ready( std::future<R> const& f )
@@ -304,10 +320,10 @@ int main( int argc, const char** argv )
 	static bool fixed_scale        = true;
 	static bool show_log_b         = false;
 	static bool bench_summary_cb   = true;
+        static bool driver_logging = false;
 
 	static atop::BenchmarkStats bench_summary;
 	static std::map<std::string, std::map<std::string, int>> ioctl_breakdown;
-	;
 
 	atop::IoctlDmesgStreamer streamer;
 
@@ -652,12 +668,15 @@ int main( int argc, const char** argv )
 					        {"disable_nnapi_cpu",
 					         atop::util::bool2string( !cpu_fallback
 					                                  && use_nnapi )},
+                                                {"require_full_delegation",
+                                                  atop::util::bool2string(!cpu_fallback)},
 					        {"use_hexagon",
 					         atop::util::bool2string( delegate_rb == 0 )},
 					        {"use_gpu",
 					         atop::util::bool2string( delegate_rb == 1 )},
 					        {"use_nnapi", atop::util::bool2string( use_nnapi )},
 					        {"nnapi_accelerator_name", nnapi_accelerator_name},
+                                                {"time_driver", atop::util::bool2string(driver_logging)},
 					    },
 					    num_procs ) );
 				}
@@ -716,6 +735,9 @@ int main( int argc, const char** argv )
 				ImGui::RadioButton( "nnapi-paintbox", &delegate_rb, 6 );
 
 				ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
+                                ImGui::SameLine();
+                                if(ImGui::Checkbox( "w/ Driver Inst.", &driver_logging ))
+                                  toggle_driver_logging();
 				ImGui::InputInt( "Runs", &num_runs );
 				ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
 				ImGui::InputInt( "CPU Threads", &num_cpu_threads );
