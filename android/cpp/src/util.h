@@ -63,6 +63,7 @@ class RandomSelector
 };
 
 inline std::string bool2string( bool b ) { return b ? "true" : "false"; }
+inline bool string2bool( std::string_view b ) { return (b == "true" || b == "1") ? true : false; }
 
 } // namespace util
 } // namespace atop
