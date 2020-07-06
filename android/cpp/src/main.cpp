@@ -72,20 +72,32 @@ unzip_imgui_models( std::vector<std::pair<std::string, bool>> const& vec )
 	return res;
 }
 
+static std::string adb_getprop(std::string_view prop)
+{
+  auto output = atop::check_console_output(fmt::format("adb shell getprop {0}", prop));
+  if(output.size() > 0)
+    return output[0];
+  else
+    return "";
+}
+
+static void adb_setprop(std::string_view prop, std::string prop_val)
+{
+  atop::check_console_output(fmt::format("adb shell setprop {0} {1}", prop, prop_val));
+}
+
 static void toggle_driver_logging()
 {
-  auto output = atop::check_console_output("adb shell getprop debug.nn.vlog");
-  if(output.size() > 0)
-  {
-    int prop_val = 0;
-    auto prop = output[0];
-    if(!prop.empty())
-      prop_val = std::stoi(prop);
+  std::string prop = "debug.nn.vlog";
+  auto output = adb_getprop(prop);
+  int prop_val = 0;
+  if(!output.empty())
+      prop_val = std::stoi(output);
 
-    // Toggle
-    LOG(fmt::format("Setting debug.nn.vlog from {0} to {1}", prop_val, 1 - prop_val));
-    atop::check_console_output(fmt::format("adb shell setprop debug.nn.vlog {0}", 1 - prop_val));
-  }
+  // Toggle
+  int new_val = 1 - prop_val;
+  LOG(fmt::format("Setting {0} from {1} to {2}", prop, prop_val, new_val));
+  adb_setprop(prop, std::to_string(new_val));
 }
 
 // Until is_ready() is in the C++ standard use this to check
@@ -308,7 +320,6 @@ int main( int argc, const char** argv )
 	static bool fixed_scale        = true;
 	static bool show_log_b         = false;
 	static bool bench_summary_cb   = true;
-        static bool driver_logging = false;
 
 	static atop::BenchmarkStats bench_summary;
 	static std::map<std::string, std::map<std::string, int>> ioctl_breakdown;
@@ -334,6 +345,9 @@ int main( int argc, const char** argv )
 	static bool data_got_consumed = false;
 
 	static std::atomic<bool> exiting = false;
+
+        std::string old_driver_logging_prop = adb_getprop("debug.nn.vlog");
+        static bool driver_logging = (old_driver_logging_prop == "1") ? true : false;
 
 	sf::Clock deltaClock;
 
@@ -770,10 +784,12 @@ int main( int argc, const char** argv )
 		window.display();
 	}
 
-	streamer_th.join();
-	cpu_th.join();
-
 	ImGui::SFML::Shutdown();
+
+        streamer_th.join();
+        cpu_th.join();
+
+        adb_setprop("debug.nn.vlog", old_driver_logging_prop);
 
 	return 0;
 }
