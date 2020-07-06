@@ -11,15 +11,15 @@
 #include <thread>
 #include <utility>
 
+#include <SFML/Graphics/CircleShape.hpp>
+#include <SFML/Graphics/RenderWindow.hpp>
+#include <SFML/System/Clock.hpp>
+#include <SFML/Window/Event.hpp>
 #include <docopt/docopt.h>
 #include <imgui-SFML.h>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <spdlog/spdlog.h>
-#include <SFML/Graphics/CircleShape.hpp>
-#include <SFML/Graphics/RenderWindow.hpp>
-#include <SFML/System/Clock.hpp>
-#include <SFML/Window/Event.hpp>
 
 #include "atop.h"
 #include "fifo.h"
@@ -35,15 +35,13 @@ static auto vector_getter = []( void* vec, int idx, const char** out_text ) {
 	return true;
 };
 
-bool ComboBox( const char* label, int* currIndex,
-               std::vector<std::string>& values )
+bool ComboBox( const char* label, int* currIndex, std::vector<std::string>& values )
 {
 	if( values.empty() )
 	{
 		return false;
 	}
-	return ImGui::Combo( label, currIndex, vector_getter,
-	                     static_cast<void*>( &values ),
+	return ImGui::Combo( label, currIndex, vector_getter, static_cast<void*>( &values ),
 	                     static_cast<int>( values.size() ) );
 }
 
@@ -52,52 +50,49 @@ imgui_models_vec( std::vector<std::string> const& models )
 {
 	std::vector<std::pair<std::string, bool>> result;
 	result.reserve( models.size() );
-	std::for_each( begin( models ), end( models ),
-	               [&result]( std::string const& m ) {
-		               result.push_back( std::make_pair( m, true ) );
-	               } );
+	std::for_each( begin( models ), end( models ), [&result]( std::string const& m ) {
+		result.push_back( std::make_pair( m, true ) );
+	} );
 	return result;
 }
 
-std::vector<std::string>
-unzip_imgui_models( std::vector<std::pair<std::string, bool>> const& vec )
+std::vector<std::string> unzip_imgui_models( std::vector<std::pair<std::string, bool>> const& vec )
 {
 	std::vector<std::string> res;
-	std::for_each( vec.begin(), vec.end(),
-	               [&]( std::pair<std::string, bool> const& p ) {
-		               if( p.second )
-			               res.push_back( p.first );
-	               } );
+	std::for_each( vec.begin(), vec.end(), [&]( std::pair<std::string, bool> const& p ) {
+		if( p.second )
+			res.push_back( p.first );
+	} );
 
 	return res;
 }
 
-static std::string adb_getprop(std::string_view prop)
+static std::string adb_getprop( std::string_view prop )
 {
-  auto output = atop::check_console_output(fmt::format("adb shell getprop {0}", prop));
-  if(output.size() > 0)
-    return output[0];
-  else
-    return "";
+	auto output = atop::check_console_output( fmt::format( "adb shell getprop {0}", prop ) );
+	if( output.size() > 0 )
+		return output[0];
+	else
+		return "";
 }
 
-static void adb_setprop(std::string_view prop, std::string prop_val)
+static void adb_setprop( std::string_view prop, std::string prop_val )
 {
-  atop::check_console_output(fmt::format("adb shell setprop {0} {1}", prop, prop_val));
+	atop::check_console_output( fmt::format( "adb shell setprop {0} {1}", prop, prop_val ) );
 }
 
 static void toggle_driver_logging()
 {
-  std::string prop = "debug.nn.vlog";
-  auto output = adb_getprop(prop);
-  int prop_val = 0;
-  if(!output.empty())
-      prop_val = std::stoi(output);
+	std::string prop = "debug.nn.vlog";
+	auto output      = adb_getprop( prop );
+	int prop_val     = 0;
+	if( !output.empty() )
+		prop_val = std::stoi( output );
 
-  // Toggle
-  int new_val = 1 - prop_val;
-  LOG(fmt::format("Setting {0} from {1} to {2}", prop, prop_val, new_val));
-  adb_setprop(prop, std::to_string(new_val));
+	// Toggle
+	int new_val = 1 - prop_val;
+	LOG( fmt::format( "Setting {0} from {1} to {2}", prop, prop_val, new_val ) );
+	adb_setprop( prop, std::to_string( new_val ) );
 }
 
 // Until is_ready() is in the C++ standard use this to check
@@ -201,10 +196,9 @@ struct Log
 			for( int line_no = 0; line_no < LineOffsets.Size; line_no++ )
 			{
 				const char* line_start = buf + LineOffsets[line_no];
-				const char* line_end
-				    = ( line_no + 1 < LineOffsets.Size )
-				          ? ( buf + LineOffsets[line_no + 1] - 1 )
-				          : buf_end;
+				const char* line_end   = ( line_no + 1 < LineOffsets.Size )
+				                           ? ( buf + LineOffsets[line_no + 1] - 1 )
+				                           : buf_end;
 				if( Filter.PassFilter( line_start, line_end ) )
 					ImGui::TextUnformatted( line_start, line_end );
 			}
@@ -215,14 +209,12 @@ struct Log
 			clipper.Begin( LineOffsets.Size );
 			while( clipper.Step() )
 			{
-				for( int line_no = clipper.DisplayStart;
-				     line_no < clipper.DisplayEnd; line_no++ )
+				for( int line_no = clipper.DisplayStart; line_no < clipper.DisplayEnd; line_no++ )
 				{
 					const char* line_start = buf + LineOffsets[line_no];
-					const char* line_end
-					    = ( line_no + 1 < LineOffsets.Size )
-					          ? ( buf + LineOffsets[line_no + 1] - 1 )
-					          : buf_end;
+					const char* line_end   = ( line_no + 1 < LineOffsets.Size )
+					                           ? ( buf + LineOffsets[line_no + 1] - 1 )
+					                           : buf_end;
 					ImGui::TextUnformatted( line_start, line_end );
 				}
 			}
@@ -238,23 +230,20 @@ struct Log
 	}
 };
 
-static void ShowBenchmarkSummary( bool* popen,
-                                  atop::BenchmarkStats const& stats )
+static void ShowBenchmarkSummary( bool* popen, atop::BenchmarkStats const& stats )
 {
 	ImGui::Begin( "Benchmark Summary", popen );
 	for( auto&& p: stats.stats )
 	{
 		ImGui::TextUnformatted(
-		    fmt::format( "{0}: {1} ms", p.first,
-		                 static_cast<double>( p.second ) / 1.0e3 )
+		    fmt::format( "{0}: {1} ms", p.first, static_cast<double>( p.second ) / 1.0e3 )
 		        .c_str() );
 	}
 	ImGui::End();
 }
 
-static void ShowIoctlBreakdown(
-    std::map<std::string, std::map<std::string, int>> const& breakdown,
-    int num_runs )
+static void ShowIoctlBreakdown( std::map<std::string, std::map<std::string, int>> const& breakdown,
+                                int num_runs )
 {
 	ImGui::Begin( "Breakdown" );
 	for( auto&& p: breakdown )
@@ -262,10 +251,9 @@ static void ShowIoctlBreakdown(
 		ImGui::TextUnformatted( fmt::format( "{0}: ", p.first ).c_str() );
 		for( auto&& cmd_p: p.second )
 		{
-			ImGui::TextUnformatted(
-			    fmt::format( "\t{0}: {1}", cmd_p.first,
-			                 static_cast<float>( cmd_p.second ) / num_runs )
-			        .c_str() );
+			ImGui::TextUnformatted( fmt::format( "\t{0}: {1}", cmd_p.first,
+			                                     static_cast<float>( cmd_p.second ) / num_runs )
+			                            .c_str() );
 		}
 	}
 	ImGui::End();
@@ -273,9 +261,9 @@ static void ShowIoctlBreakdown(
 
 int main( int argc, const char** argv )
 {
-	std::map<std::string, docopt::value> args = docopt::docopt(
-	    USAGE, {std::next( argv ), std::next( argv, argc )},
-	    true /* show if help is requested */, VERSION_STRING );
+	std::map<std::string, docopt::value> args
+	    = docopt::docopt( USAGE, {std::next( argv ), std::next( argv, argc )},
+	                      true /* show if help is requested */, VERSION_STRING );
 
 	VERBOSE        = args["--verbose"].asBool();
 	const bool sim = args["--sim"].asBool();
@@ -285,10 +273,9 @@ int main( int argc, const char** argv )
 
 	atop::logger::verbose_info( "Starting atop" );
 
-	sf::RenderWindow window(
-	    sf::VideoMode( sf::VideoMode::getDesktopMode().width,
-	                   sf::VideoMode::getDesktopMode().height ),
-	    "atop - accelerator viewer" );
+	sf::RenderWindow window( sf::VideoMode( sf::VideoMode::getDesktopMode().width,
+	                                        sf::VideoMode::getDesktopMode().height ),
+	                         "atop - accelerator viewer" );
 	window.setFramerateLimit( 60 );
 	ImGui::SFML::Init( window );
 
@@ -307,8 +294,8 @@ int main( int argc, const char** argv )
 	// TODO: is models + selected_models a better structure than the
 	// embedded boolean?
 	static std::vector<std::pair<std::string, bool>> models{
-	    imgui_models_vec( atop::get_models_on_device( atop::string2framework(
-	        frameworks[static_cast<size_t>( sel_framework )] ) ) )};
+	    imgui_models_vec( atop::get_models_on_device(
+	        atop::string2framework( frameworks[static_cast<size_t>( sel_framework )] ) ) )};
 
 	static int num_procs       = 1;
 	static int num_runs        = 1;
@@ -326,18 +313,18 @@ int main( int argc, const char** argv )
 
 	atop::IoctlDmesgStreamer streamer;
 
-        // TODO: use enum instead of raw strings; ideally a header-only
-        // solution that generates strings from enums
-        atop::LogcatStreamer logcat_streamer{"ExecutionBuilder", "tflite"};
+	// TODO: use enum instead of raw strings; ideally a header-only
+	// solution that generates strings from enums
+	atop::LogcatStreamer logcat_streamer{"ExecutionBuilder", "tflite"};
 
 	// TODO: cpu utilization can be refreshed more often
 	atop::CpuUtilizationStreamer cpu_streamer;
 
 	auto data = streamer.get_interactions();
 	std::map<std::string, double> cpu_data;
-        atop::logcat_out_t logcat_data;
+	atop::logcat_out_t logcat_data;
 
-        static std::map<std::string, int> max_interactions{};
+	static std::map<std::string, int> max_interactions{};
 
 	static Log log;
 
@@ -347,16 +334,17 @@ int main( int argc, const char** argv )
 
 	static int workloads_running = 0;
 
-	struct {
-          bool ioctl;
-          bool cpu;
-          bool logcat;
-        } data_got_consumed = { false, false, false };
+	struct
+	{
+		bool ioctl;
+		bool cpu;
+		bool logcat;
+	} data_got_consumed = {false, false, false};
 
 	static std::atomic<bool> exiting = false;
 
-	std::string old_driver_logging_prop = adb_getprop("debug.nn.vlog");
-	static bool driver_logging = atop::util::string2bool(old_driver_logging_prop);
+	std::string old_driver_logging_prop = adb_getprop( "debug.nn.vlog" );
+	static bool driver_logging          = atop::util::string2bool( old_driver_logging_prop );
 
 	sf::Clock deltaClock;
 
@@ -366,8 +354,7 @@ int main( int argc, const char** argv )
 	auto stream_ioctl_dmesg = [&]() {
 		while( !exiting )
 		{
-			ioctl_dmesg_fifo.push_data(
-			    streamer.interactions( true /* check full log */ ) );
+			ioctl_dmesg_fifo.push_data( streamer.interactions( true /* check full log */ ) );
 
 			// As long as refresh rate is higher than stream latency
 			std::this_thread::sleep_for( 2s );
@@ -375,15 +362,15 @@ int main( int argc, const char** argv )
 	};
 	std::thread streamer_th{stream_ioctl_dmesg};
 
-        atop::fifo::FIFO<atop::logcat_out_t> logcat_fifo;
-        auto stream_logcat = [&]() {
-          while( !exiting )
-          {
-            logcat_fifo.push_data( logcat_streamer.more() );
-            std::this_thread::sleep_for( 1s );
-          }
-        };
-        std::thread logcat_th{stream_logcat};
+	atop::fifo::FIFO<atop::logcat_out_t> logcat_fifo;
+	auto stream_logcat = [&]() {
+		while( !exiting )
+		{
+			logcat_fifo.push_data( logcat_streamer.more() );
+			std::this_thread::sleep_for( 1s );
+		}
+	};
+	std::thread logcat_th{stream_logcat};
 
 	atop::fifo::FIFO<std::map<std::string, double>> cpu_fifo;
 	auto stream_cpu = [&]() {
@@ -404,45 +391,42 @@ int main( int argc, const char** argv )
 
 			if( event.type == sf::Event::Closed )
 			{
-				atop::logger::verbose_info(
-				    "Window close requested...exiting" );
+				atop::logger::verbose_info( "Window close requested...exiting" );
 				window.close();
-                                exiting = true;
+				exiting = true;
 			}
 		}
 
 		if( !utilization_paused && ioctl_dmesg_fifo.data_avail() )
 		{
-			data             = ioctl_dmesg_fifo.pop_data();
+			data                    = ioctl_dmesg_fifo.pop_data();
 			data_got_consumed.ioctl = false;
 		}
 
-		if( !utilization_paused && cpu_fifo.data_avail() ) {
-                  // TODO: measure stream CPU latency
-                  cpu_data = cpu_fifo.pop_data();
-                  data_got_consumed.cpu = false;
-                }
+		if( !utilization_paused && cpu_fifo.data_avail() )
+		{
+			// TODO: measure stream CPU latency
+			cpu_data              = cpu_fifo.pop_data();
+			data_got_consumed.cpu = false;
+		}
 
-                if( !utilization_paused && logcat_fifo.data_avail() )
-                {
-                  logcat_data = logcat_fifo.pop_data();
-                  data_got_consumed.logcat = false;
-                }
+		if( !utilization_paused && logcat_fifo.data_avail() )
+		{
+			logcat_data              = logcat_fifo.pop_data();
+			data_got_consumed.logcat = false;
+		}
 
 		ImGui::SFML::Update( window, deltaClock.restart() );
 
-		ImGui::SetNextWindowPos( ImVec2( 0.0f, ImGui::GetIO().DisplaySize.y ),
-		                         0, ImVec2( 0.0f, 1.0f ) );
+		ImGui::SetNextWindowPos( ImVec2( 0.0f, ImGui::GetIO().DisplaySize.y ), 0,
+		                         ImVec2( 0.0f, 1.0f ) );
 		ImGui::SetNextWindowSize( ImVec2( 550.0f, 100.0f ), 0 );
 		ImGui::Begin( "Stream latency", &timer_win_b,
 		              ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse
-		                  | ImGuiWindowFlags_NoMove
-		                  | ImGuiWindowFlags_NoBringToFrontOnFocus
-		                  | ImGuiWindowFlags_NoTitleBar
-		                  | ImGuiWindowFlags_MenuBar );
+		                  | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus
+		                  | ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_MenuBar );
 		std::string latency_text = fmt::format(
-		    "Stream latency: {0} s",
-		    streamer.get_duration() / static_cast<float>( 1.0e3 ) );
+		    "Stream latency: {0} s", streamer.get_duration() / static_cast<float>( 1.0e3 ) );
 		ImGui::TextUnformatted( latency_text.c_str() );
 		ImGui::End();
 
@@ -472,8 +456,7 @@ int main( int argc, const char** argv )
 		if( ImGui::Button( ( utilization_paused ) ? "Resume" : "Pause" ) )
 		{
 			atop::logger::verbose_info(
-			    fmt::format( "{0} data stream",
-			                 ( utilization_paused ) ? "Resumed" : "Paused" ) );
+			    fmt::format( "{0} data stream", ( utilization_paused ) ? "Resumed" : "Paused" ) );
 			utilization_paused ^= true;
 		}
 
@@ -505,14 +488,12 @@ int main( int argc, const char** argv )
 				interactions.push_back( static_cast<int>( kv.second ) );
 			}
 
-			auto cur_max = std::max_element( std::begin( interactions ),
-			                                 std::end( interactions ) );
+			auto cur_max = std::max_element( std::begin( interactions ), std::end( interactions ) );
 			auto max_label_sz
-			    = std::max_element(
-			          std::begin( labels ), std::end( labels ),
-			          [&]( std::string const& s1, std::string const& s2 ) {
-				          return s1.size() < s2.size();
-			          } )
+			    = std::max_element( std::begin( labels ), std::end( labels ),
+			                        [&]( std::string const& s1, std::string const& s2 ) {
+				                        return s1.size() < s2.size();
+			                        } )
 			          ->size();
 
 			for( size_t i = 0; i < interactions.size(); ++i )
@@ -524,22 +505,19 @@ int main( int argc, const char** argv )
 					auto it = max_interactions.find( cur_label );
 					if( it == max_interactions.end() )
 						max_interactions[cur_label] = interactions[i];
-					int max_ = std::max( max_interactions[cur_label],
-					                     interactions[i] );
+					int max_ = std::max( max_interactions[cur_label], interactions[i] );
 
-					scale = static_cast<double>( interactions[i] )
-					        / static_cast<double>( max_ );
+					scale = static_cast<double>( interactions[i] ) / static_cast<double>( max_ );
 
 					max_interactions[cur_label] = max_;
 				}
 				else
 				{
-					scale = static_cast<double>( interactions[i] )
-					        / static_cast<double>( *cur_max );
+					scale
+					    = static_cast<double>( interactions[i] ) / static_cast<double>( *cur_max );
 				}
 
-				auto num_ticks = ( static_cast<double>( win_width ) * scale
-				                   / font_scale_factor )
+				auto num_ticks = ( static_cast<double>( win_width ) * scale / font_scale_factor )
 				                 / 8.0; // TODO: handle scaling
 				if( num_ticks > 0.0 )
 					num_ticks = std::max( 1.0, std::floor( num_ticks ) );
@@ -552,10 +530,8 @@ int main( int argc, const char** argv )
 				std::stringstream ss;
 				for( int j = 0; j < static_cast<int>( num_ticks ); ++j )
 					ss << '#';
-				ImGui::TextUnformatted( fmt::format( "{0}{1}| {2}", cur_label,
-				                                     bar_padding.str(),
-				                                     ss.str() )
-				                            .c_str() );
+				ImGui::TextUnformatted(
+				    fmt::format( "{0}{1}| {2}", cur_label, bar_padding.str(), ss.str() ).c_str() );
 			}
 		}
 
@@ -563,14 +539,12 @@ int main( int argc, const char** argv )
 
 		if( streamer.is_data_fresh && !data_got_consumed.ioctl )
 		{
-			atop::ioctl_breakdown(
-			    ioctl_breakdown,
-			    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::IOCTL )],
-			    atop::DmesgProbes::IOCTL );
-			atop::ioctl_breakdown(
-			    ioctl_breakdown,
-			    streamer.get_data()[PROBE_IDX( atop::DmesgProbes::INFO )],
-			    atop::DmesgProbes::INFO );
+			atop::ioctl_breakdown( ioctl_breakdown,
+			                       streamer.get_data()[PROBE_IDX( atop::DmesgProbes::IOCTL )],
+			                       atop::DmesgProbes::IOCTL );
+			atop::ioctl_breakdown( ioctl_breakdown,
+			                       streamer.get_data()[PROBE_IDX( atop::DmesgProbes::INFO )],
+			                       atop::DmesgProbes::INFO );
 		}
 		ShowIoctlBreakdown( ioctl_breakdown, num_runs );
 
@@ -581,13 +555,11 @@ int main( int argc, const char** argv )
 		{
 			if( bench_summary_cb )
 			{
-				atop::shell_out_t benchmark_out
-				    = benchmark_futures_q.front().get();
+				atop::shell_out_t benchmark_out = benchmark_futures_q.front().get();
 
 				atop::summarize_benchmark_output(
 				    benchmark_out,
-				    atop::string2framework(
-				        frameworks[static_cast<size_t>( sel_framework )] ),
+				    atop::string2framework( frameworks[static_cast<size_t>( sel_framework )] ),
 				    bench_summary );
 			}
 
@@ -600,13 +572,12 @@ int main( int argc, const char** argv )
 
 		if( ComboBox( "Framework", &sel_framework, frameworks ) )
 		{
-			atop::logger::verbose_info( fmt::format(
-			    "Changed model framework to: {0}",
-			    frameworks[static_cast<size_t>( sel_framework )] ) );
+			atop::logger::verbose_info(
+			    fmt::format( "Changed model framework to: {0}",
+			                 frameworks[static_cast<size_t>( sel_framework )] ) );
 
-			models = imgui_models_vec(
-			    atop::get_models_on_device( atop::string2framework(
-			        frameworks[static_cast<size_t>( sel_framework )] ) ) );
+			models = imgui_models_vec( atop::get_models_on_device(
+			    atop::string2framework( frameworks[static_cast<size_t>( sel_framework )] ) ) );
 
 			// Reset delegate because not all frameworks support all
 			// delegates
@@ -625,19 +596,16 @@ int main( int argc, const char** argv )
 			for( size_t n = 0; n < models.size(); n++ )
 			{
 				bool disable_model = tflite_hexagon_selected
-				                     && ( models[n].first.find( "_quant" )
-				                          == std::string::npos );
+				                     && ( models[n].first.find( "_quant" ) == std::string::npos );
 
 				if( disable_model )
 				{
 					ImGui::PushItemFlag( ImGuiItemFlags_Disabled, true );
-					ImGui::PushStyleVar( ImGuiStyleVar_Alpha,
-					                     ImGui::GetStyle().Alpha * 0.5f );
+					ImGui::PushStyleVar( ImGuiStyleVar_Alpha, ImGui::GetStyle().Alpha * 0.5f );
 					models[n].second = false;
 				}
 
-				if( ImGui::Selectable( models[n].first.c_str(),
-				                       models[n].second ) )
+				if( ImGui::Selectable( models[n].first.c_str(), models[n].second ) )
 					models[n].second ^= true;
 
 				if( disable_model )
@@ -665,8 +633,7 @@ int main( int argc, const char** argv )
 		if( ImGui::Button( "Run" ) )
 		{
 			ioctl_breakdown.clear();
-			switch( atop::string2framework(
-			    frameworks[static_cast<size_t>( sel_framework )] ) )
+			switch( atop::string2framework( frameworks[static_cast<size_t>( sel_framework )] ) )
 			{
 				case atop::Frameworks::tflite:
 				{
@@ -675,11 +642,9 @@ int main( int argc, const char** argv )
 					          ? "qti-dsp"
 					          : ( ( delegate_rb == 5 )
 					                  ? "qti-gpu"
-					                  : ( ( delegate_rb == 6 ) ? "paintbox"
-					                                           : "" ) );
-					bool use_nnapi
-					    = ( delegate_rb == 2 || delegate_rb == 4
-					        || delegate_rb == 5 || delegate_rb == 6 );
+					                  : ( ( delegate_rb == 6 ) ? "paintbox" : "" ) );
+					bool use_nnapi = ( delegate_rb == 2 || delegate_rb == 4 || delegate_rb == 5
+					                   || delegate_rb == 6 );
 
 					// TODO: tflite benchmark tool has undocumented CSV
 					// export flag "profiling_output_csv_file". Requires
@@ -694,17 +659,13 @@ int main( int argc, const char** argv )
 					        {"enable_op_profiling", "false"},
 					        // cpu fallback false => disable nnapi cpu true
 					        {"disable_nnapi_cpu",
-					         atop::util::bool2string( !cpu_fallback
-					                                  && use_nnapi )},
-                                                {"require_full_delegation",
-                                                  atop::util::bool2string(!cpu_fallback)},
-					        {"use_hexagon",
-					         atop::util::bool2string( delegate_rb == 0 )},
-					        {"use_gpu",
-					         atop::util::bool2string( delegate_rb == 1 )},
+					         atop::util::bool2string( !cpu_fallback && use_nnapi )},
+					        {"require_full_delegation", atop::util::bool2string( !cpu_fallback )},
+					        {"use_hexagon", atop::util::bool2string( delegate_rb == 0 )},
+					        {"use_gpu", atop::util::bool2string( delegate_rb == 1 )},
 					        {"use_nnapi", atop::util::bool2string( use_nnapi )},
 					        {"nnapi_accelerator_name", nnapi_accelerator_name},
-                                                {"time_driver", atop::util::bool2string(driver_logging)},
+					        {"time_driver", atop::util::bool2string( driver_logging )},
 					    },
 					    num_procs ) );
 				}
@@ -712,8 +673,7 @@ int main( int argc, const char** argv )
 				case atop::Frameworks::SNPE:
 				{
 					std::map<std::string, std::string> opts
-					    = {{"profiling_level", "detailed"},
-					       {"perf_profile", "high_performance"}};
+					    = {{"profiling_level", "detailed"}, {"perf_profile", "high_performance"}};
 					if( delegate_rb == 0 )
 						opts.insert( {"use_dsp", ""} );
 					else if( delegate_rb == 1 )
@@ -722,9 +682,8 @@ int main( int argc, const char** argv )
 					if( cpu_fallback )
 						opts.insert( {"enable_cpu_fallback", ""} );
 
-					benchmark_futures_q.emplace(
-					    atop::run_snpe_benchmark( unzip_imgui_models( models ),
-					                              opts, num_procs, num_runs ) );
+					benchmark_futures_q.emplace( atop::run_snpe_benchmark(
+					    unzip_imgui_models( models ), opts, num_procs, num_runs ) );
 				}
 				break;
 				case atop::Frameworks::mlperf:
@@ -740,12 +699,10 @@ int main( int argc, const char** argv )
 		//       current thread pool queue manager waits for a task to
 		//       finish before removing a task
 		ImGui::SameLine();
-		ImGui::TextUnformatted(
-		    fmt::format( "{0} running", workloads_running ).c_str() );
+		ImGui::TextUnformatted( fmt::format( "{0} running", workloads_running ).c_str() );
 
 		ImGui::Begin( "Benchmark Options" );
-		switch( atop::string2framework(
-		    frameworks[static_cast<size_t>( sel_framework )] ) )
+		switch( atop::string2framework( frameworks[static_cast<size_t>( sel_framework )] ) )
 		{
 			case atop::Frameworks::tflite:
 				ImGui::RadioButton( "Hexagon DSP", &delegate_rb, 0 );
@@ -763,9 +720,9 @@ int main( int argc, const char** argv )
 				ImGui::RadioButton( "nnapi-paintbox", &delegate_rb, 6 );
 
 				ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
-                                ImGui::SameLine();
-                                if(ImGui::Checkbox( "w/ Driver Inst.", &driver_logging ))
-                                  toggle_driver_logging();
+				ImGui::SameLine();
+				if( ImGui::Checkbox( "w/ Driver Inst.", &driver_logging ) )
+					toggle_driver_logging();
 				ImGui::InputInt( "Runs", &num_runs );
 				ImGui::InputInt( "Warmup Runs", &num_warmup_runs );
 				ImGui::InputInt( "CPU Threads", &num_cpu_threads );
@@ -791,34 +748,30 @@ int main( int argc, const char** argv )
 		ImGui::Begin( "Log", &show_log_b );
 		if( streamer.is_data_fresh && !data_got_consumed.ioctl )
 		{
-			auto data_to_log
-			    = streamer.get_data()[PROBE_IDX( streamer.utilization_probe )];
-			for( auto it = data_to_log.rbegin(); it != data_to_log.rend();
-			     ++it )
+			auto data_to_log = streamer.get_data()[PROBE_IDX( streamer.utilization_probe )];
+			for( auto it = data_to_log.rbegin(); it != data_to_log.rend(); ++it )
 				log.AddLog( "%s\n", ( *it ).c_str() );
+		}
 
-                }
-
-                // TODO: could be in separate "Logcat" view
-                if(logcat_streamer.is_data_fresh && !data_got_consumed.logcat)
-                {
-                  for(auto&& kv: logcat_streamer.get_data())
-                  {
-                    for( auto it = kv.second.rbegin(); it != kv.second.rend();
-                         ++it )
-                      log.AddLog( "%s\n", ( *it ).c_str() );
-                  }
-                }
+		// TODO: could be in separate "Logcat" view
+		if( logcat_streamer.is_data_fresh && !data_got_consumed.logcat )
+		{
+			for( auto&& kv: logcat_streamer.get_data() )
+			{
+				for( auto it = kv.second.rbegin(); it != kv.second.rend(); ++it )
+					log.AddLog( "%s\n", ( *it ).c_str() );
+			}
+		}
 		ImGui::End();
 
 		// Actually call in the regular Log helper (which will Begin() into
 		// the same window as we just did)
 		log.Draw( "Log", &show_log_b );
 
-                // One iteration => data in streamer has been processed
-                data_got_consumed.logcat = true;
-                data_got_consumed.ioctl = true;
-                data_got_consumed.cpu = true;
+		// One iteration => data in streamer has been processed
+		data_got_consumed.logcat = true;
+		data_got_consumed.ioctl  = true;
+		data_got_consumed.cpu    = true;
 
 		window.clear();
 		ImGui::SFML::Render( window );
@@ -831,7 +784,7 @@ int main( int argc, const char** argv )
 	cpu_th.join();
 	logcat_th.join();
 
-	adb_setprop("debug.nn.vlog", old_driver_logging_prop);
+	adb_setprop( "debug.nn.vlog", old_driver_logging_prop );
 
 	return 0;
 }

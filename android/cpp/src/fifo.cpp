@@ -3,8 +3,7 @@
 #include <map>
 #include <thread>
 
-template<typename Data_t>
-void atop::fifo::FIFO<Data_t>::push_data( Data_t const& more )
+template<typename Data_t> void atop::fifo::FIFO<Data_t>::push_data( Data_t const& more )
 {
 	while( this->data.size() > this->max_data_sz )
 		continue;

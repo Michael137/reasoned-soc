@@ -6,8 +6,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <initializer_list>
 #include <future>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <regex>
@@ -23,8 +23,8 @@
 #include <spdlog/spdlog.h>
 // #include <date/tz.h> // FIXME: date/2.4.1 cannot find tz db
 // #include <date/date.h> // FIXME: conan's date/2.4.1 date::parse doesn't work
-#include "date.h"
 #include "ctpl.h"
+#include "date.h"
 
 #include "atop.h"
 #include "logger.h"
@@ -33,27 +33,25 @@
 using namespace std::chrono_literals;
 
 // Constants
-static const std::string TFLITE_BENCHMARK_BIN
-    = "/data/local/tmp/benchmark_model";
+static const std::string TFLITE_BENCHMARK_BIN = "/data/local/tmp/benchmark_model";
 static const std::string SNPE_BENCHMARK_BIN
     = "/data/local/tmp/snpebm/artifacts/arm-android-clang6.0/bin/snpe-net-run";
 static const std::string logcat_time_fmt = "%m-%d %T";
 
-static inline void handle_system_return( int status,
-                                         bool terminate_on_err = false )
+static inline void handle_system_return( int status, bool terminate_on_err = false )
 {
 	if( status < 0 )
-		throw std::runtime_error( fmt::format(
-		    "Error when running system cmd: {0}", std::strerror( errno ) ) );
+		throw std::runtime_error(
+		    fmt::format( "Error when running system cmd: {0}", std::strerror( errno ) ) );
 
 	if( !WIFEXITED( status ) )
 	{
 		if( terminate_on_err )
-			throw std::runtime_error( fmt::format(
-			    "Program exited abnormally: !WIFEXITED({0})", status ) );
+			throw std::runtime_error(
+			    fmt::format( "Program exited abnormally: !WIFEXITED({0})", status ) );
 		else
-			atop::logger::warn( fmt::format(
-			    "Program exited abnormally: !WIFEXITED({0})", status ) );
+			atop::logger::warn(
+			    fmt::format( "Program exited abnormally: !WIFEXITED({0})", status ) );
 	}
 }
 
@@ -61,8 +59,7 @@ static inline void handle_system_return( int status,
 atop::shell_out_t atop::check_console_output( std::string const& cmd )
 {
 	std::vector<char> buffer( 512 );
-	std::unique_ptr<FILE, decltype( &pclose )> pipe( popen( cmd.c_str(), "r" ),
-	                                                 pclose );
+	std::unique_ptr<FILE, decltype( &pclose )> pipe( popen( cmd.c_str(), "r" ), pclose );
 	std::string output;
 
 	if( !pipe )
@@ -71,8 +68,7 @@ atop::shell_out_t atop::check_console_output( std::string const& cmd )
 	}
 
 	// TODO: Use fread() instead?
-	while( fgets( buffer.data(), static_cast<int>( buffer.size() ), pipe.get() )
-	       != nullptr )
+	while( fgets( buffer.data(), static_cast<int>( buffer.size() ), pipe.get() ) != nullptr )
 	{
 		output += buffer.data();
 	}
@@ -82,10 +78,7 @@ atop::shell_out_t atop::check_console_output( std::string const& cmd )
 	return atop::util::split( output, '\n' );
 }
 
-static bool in_adb_root()
-{
-	return atop::check_console_output( "adb shell whoami" )[0] == "root";
-}
+static bool in_adb_root() { return atop::check_console_output( "adb shell whoami" )[0] == "root"; }
 
 void atop::check_reqs()
 {
@@ -94,8 +87,7 @@ void atop::check_reqs()
 
 	for( auto& bin: required_bins )
 	{
-		if( atop::check_console_output( fmt::format( "which {0}", bin ) ).size()
-		    == 0 )
+		if( atop::check_console_output( fmt::format( "which {0}", bin ) ).size() == 0 )
 			not_found_bins.push_back( bin );
 	}
 
@@ -114,8 +106,7 @@ void atop::check_reqs()
 	if( devices.size() == 1 )
 		atop::logger::log_and_exit( "No devices connected" );
 	else if( devices.size() > 2 )
-		atop::logger::log_and_exit(
-		    "atop expects only a single connected Android device" );
+		atop::logger::log_and_exit( "atop expects only a single connected Android device" );
 
 	auto adb_output  = atop::util::split( devices[1], '\t' );
 	auto device_name = adb_output[0];
@@ -135,8 +126,7 @@ void atop::check_reqs()
 			atop::logger::log_and_exit( "Failed to restart adb in root" );
 	}
 
-	atop::logger::verbose_info(
-	    fmt::format( "Found device: {0}", device_name ) );
+	atop::logger::verbose_info( fmt::format( "Found device: {0}", device_name ) );
 
 	// TODO: check adb write permissions
 }
@@ -146,20 +136,17 @@ static atop::shell_out_t check_adb_shell_output( std::string const& cmd )
 	return atop::check_console_output( fmt::format( "adb shell \"{}\"", cmd ) );
 }
 
-static atop::shell_out_t check_dmesg_log()
-{
-	return check_adb_shell_output( "dmesg" );
-}
+static atop::shell_out_t check_dmesg_log() { return check_adb_shell_output( "dmesg" ); }
 
-static atop::shell_out_t check_logcat_log(std::string const& args = "")
+static atop::shell_out_t check_logcat_log( std::string const& args = "" )
 {
-  // logcat
-  // -d: dump once
-  // -s: silence other tags
-  // <tag>[:priority]
-  std::string logcat_params = "-d -s";
-  logcat_params += args;
-  return atop::check_console_output( fmt::format( "adb logcat {}", logcat_params ) );
+	// logcat
+	// -d: dump once
+	// -s: silence other tags
+	// <tag>[:priority]
+	std::string logcat_params = "-d -s";
+	logcat_params += args;
+	return atop::check_console_output( fmt::format( "adb logcat {}", logcat_params ) );
 }
 
 // Zip turns
@@ -177,9 +164,10 @@ static atop::shell_out_t check_logcat_log(std::string const& args = "")
 //  { "PROBE 2 ....",
 //    "PROBE 2 ....",
 //    "PROBE 2 ...." }
-template<class Container> Container
-process_and_zip_shell_out( atop::shell_out_t&& log, std::string const& probe_pattern,
-                           std::function<void(Container&,const std::smatch&,const std::string&)> inserter)
+template<class Container>
+Container process_and_zip_shell_out(
+    atop::shell_out_t&& log, std::string const& probe_pattern,
+    std::function<void( Container&, const std::smatch&, const std::string& )> inserter )
 {
 	std::regex pattern{probe_pattern};
 	std::smatch match;
@@ -187,37 +175,33 @@ process_and_zip_shell_out( atop::shell_out_t&& log, std::string const& probe_pat
 	for( auto& line: log )
 	{
 		if( std::regex_search( line, match, pattern ) )
-                  inserter(results, match, line);
+			inserter( results, match, line );
 	}
 
 	return results;
 }
 
-static atop::ioctl_dmesg_t
-process_and_zip_dmesg_log( atop::shell_out_t&& log,
-                           std::vector<std::string> const& probes )
+static atop::ioctl_dmesg_t process_and_zip_dmesg_log( atop::shell_out_t&& log,
+                                                      std::vector<std::string> const& probes )
 {
-  // Match dmesg timestamp followed by probe
-  std::string probes_regex
-      = std::accumulate( std::next( probes.begin() ), probes.end(), probes[0],
-                         []( std::string const& a, std::string const& b ) {
-                           return a + "|" + b;
-                         } );
-  std::string regex_str = std::string( R"(\[[0-9\.\s]+\]\s+)" ) + "("
-                          + probes_regex.c_str() + ")";
+	// Match dmesg timestamp followed by probe
+	std::string probes_regex = std::accumulate(
+	    std::next( probes.begin() ), probes.end(), probes[0],
+	    []( std::string const& a, std::string const& b ) { return a + "|" + b; } );
+	std::string regex_str
+	    = std::string( R"(\[[0-9\.\s]+\]\s+)" ) + "(" + probes_regex.c_str() + ")";
 
-  auto inserter = [](atop::ioctl_dmesg_t& out, std::smatch const& match, std::string const& line)
-  {
-    std::string probe = match[1].str();
-    out[PROBE_IDX( atop::string2dmesgProbes( probe ) )]
-        .emplace_back( line );
-  };
+	auto inserter
+	    = []( atop::ioctl_dmesg_t& out, std::smatch const& match, std::string const& line ) {
+		      std::string probe = match[1].str();
+		      out[PROBE_IDX( atop::string2dmesgProbes( probe ) )].emplace_back( line );
+	      };
 
-  return process_and_zip_shell_out<atop::ioctl_dmesg_t>(std::forward<atop::shell_out_t>(log), regex_str, inserter);
+	return process_and_zip_shell_out<atop::ioctl_dmesg_t>( std::forward<atop::shell_out_t>( log ),
+	                                                       regex_str, inserter );
 }
 
-atop::IoctlDmesgStreamer::IoctlDmesgStreamer(
-    std::vector<std::string> const& probes )
+atop::IoctlDmesgStreamer::IoctlDmesgStreamer( std::vector<std::string> const& probes )
     : utilization_probe( atop::DmesgProbes::IOCTL )
     , is_data_fresh( false )
     , latest_ts( 0.0 )
@@ -230,8 +214,7 @@ atop::IoctlDmesgStreamer::IoctlDmesgStreamer(
 	max_tses.reserve( this->latest_data.size() );
 	for( size_t i = 0; i < this->latest_data.size(); ++i )
 		if( this->latest_data[i].size() > 0 )
-			max_tses.push_back(
-			    atop::util::extract_time( this->latest_data[i].back() ) );
+			max_tses.push_back( atop::util::extract_time( this->latest_data[i].back() ) );
 
 	if( max_tses.size() > 0 )
 		this->latest_ts = *std::max_element( max_tses.begin(), max_tses.end() );
@@ -256,12 +239,11 @@ atop::ioctl_dmesg_t const& atop::IoctlDmesgStreamer::more()
 	max_tses.reserve( this->latest_data.size() );
 	for( size_t i = 0; i < this->latest_data.size(); ++i )
 		if( this->latest_data[i].size() > 0 )
-			max_tses.push_back(
-			    atop::util::extract_time( this->latest_data[i][0] ) );
+			max_tses.push_back( atop::util::extract_time( this->latest_data[i][0] ) );
 
 	if( max_tses.size() > 0 )
 	{
-		this->latest_ts = *std::max_element( max_tses.begin(), max_tses.end() );
+		this->latest_ts     = *std::max_element( max_tses.begin(), max_tses.end() );
 		this->is_data_fresh = true;
 	}
 	else
@@ -286,16 +268,15 @@ static std::string extract_dmesg_accl_tag( std::string const& str )
 		return "";
 }
 
-std::map<std::string, int> const&
-atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
+std::map<std::string, int> const& atop::IoctlDmesgStreamer::interactions( bool check_full_log,
+                                                                          double threshold )
 {
 	auto start = std::chrono::system_clock::now();
 	std::vector<std::string> eligible;
 	auto data = this->more()[PROBE_IDX( this->utilization_probe )];
 	if( data.size() == 0 )
 	{
-		std::for_each( this->latest_interactions.begin(),
-		               this->latest_interactions.end(),
+		std::for_each( this->latest_interactions.begin(), this->latest_interactions.end(),
 		               [&]( auto& p ) { p.second = 0; } );
 	}
 	else
@@ -307,8 +288,7 @@ atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 		{
 			for( auto it = data.rbegin(); it != data.rend(); ++it )
 			{
-				if( atop::util::extract_time( *it )
-				    >= ( most_recent - threshold ) )
+				if( atop::util::extract_time( *it ) >= ( most_recent - threshold ) )
 					eligible.push_back( *it );
 				else
 					break;
@@ -326,8 +306,7 @@ atop::IoctlDmesgStreamer::interactions( bool check_full_log, double threshold )
 			tag = extract_dmesg_accl_tag( line );
 			if( !tag.empty() )
 			{
-				if( this->latest_interactions.find( tag )
-				    == this->latest_interactions.end() )
+				if( this->latest_interactions.find( tag ) == this->latest_interactions.end() )
 					this->latest_interactions.insert( {tag, 0} );
 				this->latest_interactions[tag] += 1;
 			}
@@ -349,25 +328,18 @@ static bool file_exists_on_device( std::string const& pth )
 static void check_file_exists_on_device( std::string const& pth )
 {
 	if( !file_exists_on_device( pth ) )
-		atop::logger::log_and_exit(
-		    fmt::format( "Path '{0}' doesn't exist on device", pth ) );
+		atop::logger::log_and_exit( fmt::format( "Path '{0}' doesn't exist on device", pth ) );
 }
 
-static void check_tflite_reqs()
-{
-	check_file_exists_on_device( TFLITE_BENCHMARK_BIN );
-}
+static void check_tflite_reqs() { check_file_exists_on_device( TFLITE_BENCHMARK_BIN ); }
 
-static void check_snpe_reqs()
-{
-	check_file_exists_on_device( SNPE_BENCHMARK_BIN );
-}
+static void check_snpe_reqs() { check_file_exists_on_device( SNPE_BENCHMARK_BIN ); }
 
 static std::vector<std::string> get_tflite_models()
 {
 	// TODO: create separate directory for tflite benchmark models
-	std::vector<std::string> paths = atop::check_console_output(
-	    "adb shell ls -d /data/local/tmp/*.tflite" );
+	std::vector<std::string> paths
+	    = atop::check_console_output( "adb shell ls -d /data/local/tmp/*.tflite" );
 	return paths;
 }
 
@@ -384,30 +356,23 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 	{
 		case atop::Frameworks::mlperf:
 			throw atop::util::NotImplementedException(
-			    fmt::format( "Framework {0} not yet implemented",
-			                 atop::framework2string( fr ) ) );
-		case atop::Frameworks::SNPE:
-			check_snpe_reqs();
-			return get_snpe_models();
-		case atop::Frameworks::tflite:
-			check_tflite_reqs();
-			return get_tflite_models();
+			    fmt::format( "Framework {0} not yet implemented", atop::framework2string( fr ) ) );
+		case atop::Frameworks::SNPE: check_snpe_reqs(); return get_snpe_models();
+		case atop::Frameworks::tflite: check_tflite_reqs(); return get_tflite_models();
 	}
 
-	throw std::logic_error( fmt::format( "Framework {0} not supported",
-	                                     atop::framework2string( fr ) ) );
+	throw std::logic_error(
+	    fmt::format( "Framework {0} not supported", atop::framework2string( fr ) ) );
 }
 
-static std::future<atop::shell_out_t> run_benchmark(
-    std::string const& benchmark_bin, fmt::string_view options_fmt,
-    fmt::string_view model_fmt, std::vector<std::string> const& model_paths,
-    std::map<std::string, std::string> const& options, int processes,
-    std::string const& prefix = "",
-    std::function<std::string( std::string const& )> const& suffix_gen
-    = nullptr,
-    std::function<atop::shell_out_t( std::string const& )> const& after_runner
-    = nullptr,
-    int repeat = 0 )
+static std::future<atop::shell_out_t>
+run_benchmark( std::string const& benchmark_bin, fmt::string_view options_fmt,
+               fmt::string_view model_fmt, std::vector<std::string> const& model_paths,
+               std::map<std::string, std::string> const& options, int processes,
+               std::string const& prefix                                                  = "",
+               std::function<std::string( std::string const& )> const& suffix_gen         = nullptr,
+               std::function<atop::shell_out_t( std::string const& )> const& after_runner = nullptr,
+               int repeat                                                                 = 0 )
 {
 	// The user is unlikely to spawn more than
 	// 8 threads simultaneously (unless this function
@@ -418,8 +383,7 @@ static std::future<atop::shell_out_t> run_benchmark(
 	std::stringstream base_cmd;
 	// taskset f0: run benchmark on the big cores of big.LITLE ARM CPUs.
 	// This reduces variance between benchmark runs
-	base_cmd << prefix << ( ( prefix.empty() ) ? "" : ";" ) << " taskset f0 "
-	         << benchmark_bin;
+	base_cmd << prefix << ( ( prefix.empty() ) ? "" : ";" ) << " taskset f0 " << benchmark_bin;
 	for( auto&& p: options )
 	{
 		base_cmd << " ";
@@ -447,22 +411,19 @@ static std::future<atop::shell_out_t> run_benchmark(
 
 	if( pool.n_idle() > 0 )
 	{
-		atop::logger::verbose_info(
-		    fmt::format( "{0}/{1} threads availble in {2} thread pool. "
-		                 "Scheduling new task...",
-		                 pool.n_idle(), pool.size(), __FUNCTION__ ) );
+		atop::logger::verbose_info( fmt::format( "{0}/{1} threads availble in {2} thread pool. "
+		                                         "Scheduling new task...",
+		                                         pool.n_idle(), pool.size(), __FUNCTION__ ) );
 	}
 	else
 	{
-		atop::logger::verbose_info(
-		    fmt::format( "Capacity of {0} thread pool reached (max: {1}). "
-		                 "Clearing previous threads...",
-		                 __FUNCTION__, pool.size() ) );
+		atop::logger::verbose_info( fmt::format( "Capacity of {0} thread pool reached (max: {1}). "
+		                                         "Clearing previous threads...",
+		                                         __FUNCTION__, pool.size() ) );
 		pool.stop();
 	}
 
-	atop::logger::verbose_info(
-	    fmt::format( "Running benchmark using: {0}", cmd.str() ) );
+	atop::logger::verbose_info( fmt::format( "Running benchmark using: {0}", cmd.str() ) );
 
 	auto cmd_str = cmd.str();
 	std::future<atop::shell_out_t> f
@@ -494,28 +455,25 @@ static std::future<atop::shell_out_t> run_benchmark(
 
 std::future<atop::shell_out_t>
 atop::run_tflite_benchmark( std::vector<std::string> const& model_paths,
-                            std::map<std::string, std::string> const& options,
-                            int processes )
+                            std::map<std::string, std::string> const& options, int processes )
 {
-	return run_benchmark( TFLITE_BENCHMARK_BIN, "--{0}={1}", "--graph={0}",
-	                      model_paths, options, processes );
+	return run_benchmark( TFLITE_BENCHMARK_BIN, "--{0}={1}", "--graph={0}", model_paths, options,
+	                      processes );
 }
 
-static atop::shell_out_t
-get_snpe_diagview_output( std::string const& model_path )
+static atop::shell_out_t get_snpe_diagview_output( std::string const& model_path )
 {
 	auto log_files = check_adb_shell_output(
-	    fmt::format( "ls {0}/output/SNPEDiag_*.log",
-	                 atop::util::basepath( model_path ).c_str() ) );
+	    fmt::format( "ls {0}/output/SNPEDiag_*.log", atop::util::basepath( model_path ).c_str() ) );
 
 	// TODO: check whether diagview exists
 	atop::shell_out_t out;
 	for( auto&& file: log_files )
 	{
-		auto more = atop::check_console_output(
-		    fmt::format( "adb shell cat {0} > /tmp/diag.log && "
-		                 "snpe-diagview --input_log /tmp/diag.log",
-		                 file.c_str() ) );
+		auto more
+		    = atop::check_console_output( fmt::format( "adb shell cat {0} > /tmp/diag.log && "
+		                                               "snpe-diagview --input_log /tmp/diag.log",
+		                                               file.c_str() ) );
 
 		// Append to output vector
 		out.insert( out.end(), std::make_move_iterator( more.begin() ),
@@ -527,38 +485,34 @@ get_snpe_diagview_output( std::string const& model_path )
 
 std::future<atop::shell_out_t>
 atop::run_snpe_benchmark( std::vector<std::string> const& model_paths,
-                          std::map<std::string, std::string> const& options,
-                          int processes, int num_runs )
+                          std::map<std::string, std::string> const& options, int processes,
+                          int num_runs )
 {
 	// Awkward ADSP_LIBRARY_PATH because paths need to be
 	// separated by ";" instead of the usual ":"
-	std::string prefix
-	    = "export LD_LIBRARY_PATH=/data/local/tmp/snpebm/artifacts/"
-	      "arm-android-clang6.0/lib:$LD_LIBRARY_PATH"
-	      ";"
-	      "export ADSP_LIBRARY_PATH=\\\"/data/local/tmp/snpebm/artifacts/"
-	      "arm-android-clang6.0/lib/../../dsp/lib;/system/lib/rfsa/adsp;"
-	      "/usr/lib/rfsa/adsp;/system/vendor/lib/rfsa/adsp;"
-	      "/dsp;/etc/images/dsp;\\\"";
+	std::string prefix = "export LD_LIBRARY_PATH=/data/local/tmp/snpebm/artifacts/"
+	                     "arm-android-clang6.0/lib:$LD_LIBRARY_PATH"
+	                     ";"
+	                     "export ADSP_LIBRARY_PATH=\\\"/data/local/tmp/snpebm/artifacts/"
+	                     "arm-android-clang6.0/lib/../../dsp/lib;/system/lib/rfsa/adsp;"
+	                     "/usr/lib/rfsa/adsp;/system/vendor/lib/rfsa/adsp;"
+	                     "/dsp;/etc/images/dsp;\\\"";
 
 	for( auto&& m: model_paths )
 	{
 		std::string base_path = atop::util::basepath( m );
 
-		atop::logger::verbose_info( fmt::format(
-		    "Deleting previous benchmark results in {0}/output", base_path ) );
+		atop::logger::verbose_info(
+		    fmt::format( "Deleting previous benchmark results in {0}/output", base_path ) );
 
-		check_adb_shell_output(
-		    fmt::format( "rm -rf {0}/output/SNPEDiag_*.log", base_path ) );
+		check_adb_shell_output( fmt::format( "rm -rf {0}/output/SNPEDiag_*.log", base_path ) );
 	}
 
 	return run_benchmark(
-	    SNPE_BENCHMARK_BIN, "--{0} {1}", "--container {0}", model_paths,
-	    options, processes, prefix,
+	    SNPE_BENCHMARK_BIN, "--{0} {1}", "--container {0}", model_paths, options, processes, prefix,
 	    []( std::string const& model ) {
-		    return fmt::format(
-		        "--input_list {0}/target_raw_list.txt --output {0}/output",
-		        atop::util::basepath( model ) );
+		    return fmt::format( "--input_list {0}/target_raw_list.txt --output {0}/output",
+		                        atop::util::basepath( model ) );
 	    },
 	    get_snpe_diagview_output, num_runs - 1 /* = repeat */ );
 }
@@ -572,9 +526,8 @@ static inline bool is_cpu_str( std::string const& line )
 static std::vector<std::vector<uint64_t>> get_proc_stat_cpu_info()
 {
 	auto out     = atop::check_console_output( "adb shell cat /proc/stat" );
-	auto out_end = std::remove_if(
-	    out.begin(), out.end(),
-	    [&]( std::string const& line ) { return !is_cpu_str( line ); } );
+	auto out_end = std::remove_if( out.begin(), out.end(),
+	                               [&]( std::string const& line ) { return !is_cpu_str( line ); } );
 	out.erase( out_end, out.end() );
 
 	std::vector<std::vector<uint64_t>> res;
@@ -620,8 +573,7 @@ atop::CpuUtilizationStreamer::CpuUtilizationStreamer()
 	this->idle.resize( sz, 0 );
 }
 
-std::map<std::string, double> const&
-atop::CpuUtilizationStreamer::utilizations()
+std::map<std::string, double> const& atop::CpuUtilizationStreamer::utilizations()
 {
 	auto info = get_proc_stat_cpu_info();
 
@@ -631,8 +583,7 @@ atop::CpuUtilizationStreamer::utilizations()
 		this->idle_old[i]       = this->idle[i];
 
 		this->total_tick[i] = std::accumulate( info[i].begin(), info[i].end(),
-		                                       static_cast<uint64_t>( 0 ),
-		                                       std::plus<uint64_t>() );
+		                                       static_cast<uint64_t>( 0 ), std::plus<uint64_t>() );
 
 		this->idle[i] = info[i][3];
 
@@ -640,8 +591,7 @@ atop::CpuUtilizationStreamer::utilizations()
 		this->del_idle[i]       = this->idle[i] - this->idle_old[i];
 
 		this->latest_utils[fmt::format( "cpu{0}", i )]
-		    = ( static_cast<double>( this->del_total_tick[i]
-		                             - this->del_idle[i] )
+		    = ( static_cast<double>( this->del_total_tick[i] - this->del_idle[i] )
 		        / static_cast<double>( this->del_total_tick[i] ) )
 		      * 100;
 	}
@@ -657,8 +607,8 @@ static void summarize_tflite_benchmark_output( atop::shell_out_t const& out,
 	{
 		if( line.rfind( "PRE-PROCESSING", 0 ) == 0 )
 		{
-			stats.stats["preproc"] = strtoull(
-			    atop::util::split( line, ' ' )[1].c_str(), &end, 10 );
+			stats.stats["preproc"]
+			    = strtoull( atop::util::split( line, ' ' )[1].c_str(), &end, 10 );
 		}
 		if( line.rfind( "Inference timings in us", 0 ) == 0 )
 		{
@@ -669,13 +619,11 @@ static void summarize_tflite_benchmark_output( atop::shell_out_t const& out,
 
 			if( std::regex_search( line, match, pattern ) )
 			{
-				stats.stats["init"]
-				    = strtoull( match[1].str().c_str(), &end, 10 );
+				stats.stats["init"] = strtoull( match[1].str().c_str(), &end, 10 );
 				// Inference time in tflite benchmark doesn't include
 				// pre-/post-processing
 				stats.stats["inference"]
-				    = strtoull( match[3].str().c_str(), &end, 10 )
-				      - stats.stats["offload"];
+				    = strtoull( match[3].str().c_str(), &end, 10 ) - stats.stats["offload"];
 			}
 		}
 	}
@@ -698,9 +646,7 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 		// 1. Dnn Runtime Load/Deserialize/Create/De-Init Statistics
 		// 2. Average Statistics
 		// 3. Layer Times section
-		if( line.rfind(
-		        "Dnn Runtime Load/Deserialize/Create/De-Init Statistics", 0 )
-		    == 0 )
+		if( line.rfind( "Dnn Runtime Load/Deserialize/Create/De-Init Statistics", 0 ) == 0 )
 		{
 			start_parsing = true;
 			header_cnt++;
@@ -722,12 +668,10 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 			if( std::regex_search( line, match, pattern ) )
 			{
 				uint64_t val = strtoull( match[2].str().c_str(), &end, 10 );
-				if( auto it{snpe_stats.find( match[1].str() )};
-				    it != std::end( snpe_stats ) )
+				if( auto it{snpe_stats.find( match[1].str() )}; it != std::end( snpe_stats ) )
 					( *it ).second += val;
 				else
-					snpe_stats.insert(
-					    std::pair<std::string, uint64_t>( match[1], val ) );
+					snpe_stats.insert( std::pair<std::string, uint64_t>( match[1], val ) );
 			}
 		}
 	}
@@ -740,34 +684,26 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 
 	stats.stats["inference"] = snpe_stats["Forward Propagate Time"];
 
-	stats.stats["offload"]
-	    = ( snpe_stats["RPC Init Time"] - snpe_stats["Accelerator Init Time"] )
-	      + ( snpe_stats["RPC Execute"] - snpe_stats["Accelerator"] );
+	stats.stats["offload"] = ( snpe_stats["RPC Init Time"] - snpe_stats["Accelerator Init Time"] )
+	                         + ( snpe_stats["RPC Execute"] - snpe_stats["Accelerator"] );
 	stats.stats["postproc"] = 0;
 	stats.stats["init"]     = snpe_stats["Init"];
 }
 
-void atop::summarize_benchmark_output( shell_out_t const& out,
-                                       atop::Frameworks fr,
+void atop::summarize_benchmark_output( shell_out_t const& out, atop::Frameworks fr,
                                        atop::BenchmarkStats& stats )
 {
 	switch( fr )
 	{
-		case atop::Frameworks::tflite:
-			summarize_tflite_benchmark_output( out, stats );
-			break;
-		case atop::Frameworks::SNPE:
-			summarize_snpe_benchmark_output( out, stats );
-			break;
+		case atop::Frameworks::tflite: summarize_tflite_benchmark_output( out, stats ); break;
+		case atop::Frameworks::SNPE: summarize_snpe_benchmark_output( out, stats ); break;
 		case atop::Frameworks::mlperf:
-			throw atop::util::NotImplementedException(
-			    "Framework mlperf not yet implemented" );
+			throw atop::util::NotImplementedException( "Framework mlperf not yet implemented" );
 	};
 }
 
-static void ioctl_breakdown_impl(
-    std::map<std::string, std::map<std::string, int>>& breakdown,
-    atop::shell_out_t const& data, std::string const& pattern_str )
+static void ioctl_breakdown_impl( std::map<std::string, std::map<std::string, int>>& breakdown,
+                                  atop::shell_out_t const& data, std::string const& pattern_str )
 {
 	std::smatch match;
 	std::regex pattern{pattern_str};
@@ -780,12 +716,9 @@ static void ioctl_breakdown_impl(
 			std::string cmd = match[2].str();
 			// Application in map?
 			if( auto it{breakdown.find( app )}; it == std::end( breakdown ) )
-				breakdown.insert(
-				    std::pair<std::string, std::map<std::string, int>>( app,
-				                                                        {} ) );
+				breakdown.insert( std::pair<std::string, std::map<std::string, int>>( app, {} ) );
 
-			if( auto ioctl_it{breakdown[app].find( cmd )};
-			    ioctl_it == std::end( breakdown[app] ) )
+			if( auto ioctl_it{breakdown[app].find( cmd )}; ioctl_it == std::end( breakdown[app] ) )
 				breakdown[app].insert( std::pair<std::string, int>( cmd, 0 ) );
 
 			breakdown[app][cmd]++;
@@ -793,9 +726,8 @@ static void ioctl_breakdown_impl(
 	}
 }
 
-void atop::ioctl_breakdown(
-    std::map<std::string, std::map<std::string, int>>& breakdown,
-    atop::shell_out_t const& data, atop::DmesgProbes probe )
+void atop::ioctl_breakdown( std::map<std::string, std::map<std::string, int>>& breakdown,
+                            atop::shell_out_t const& data, atop::DmesgProbes probe )
 {
 	switch( probe )
 	{
@@ -803,11 +735,9 @@ void atop::ioctl_breakdown(
 		{
 			std::string tag_pattern = R"([\(\)a-z\s:0-9\-_]*)";
 			std::string cmd_pattern = R"(\(cmd: ([a-zA-Z0-9\s_]+) \[[0-9]+\]\))";
-			std::string app_pattern = tag_pattern
-			                          + R"(\(app: ([a-zA-Z_:@\-0-9]+)\))" + " "
-			                          + cmd_pattern + tag_pattern;
-			auto pattern_str
-			    = R"(\[[0-9\.\s*]+\] IOCTL [a-zA-Z]+)" + app_pattern;
+			std::string app_pattern
+			    = tag_pattern + R"(\(app: ([a-zA-Z_:@\-0-9]+)\))" + " " + cmd_pattern + tag_pattern;
+			auto pattern_str = R"(\[[0-9\.\s*]+\] IOCTL [a-zA-Z]+)" + app_pattern;
 			ioctl_breakdown_impl( breakdown, data, pattern_str );
 		}
 		break;
@@ -825,124 +755,120 @@ void atop::ioctl_breakdown(
 }
 
 // TODO: could be std::map<LogcatProbes, std::string>
-static std::map<std::string, std::string> logcat_probe_rgx_tbl = {
-    {"ExecutionBuilder", "NNAPI ANDROID"},
-    {"tflite", "TIME NNAPI_DELEGATE:"}};
+static std::map<std::string, std::string> logcat_probe_rgx_tbl
+    = {{"ExecutionBuilder", "NNAPI ANDROID"}, {"tflite", "TIME NNAPI_DELEGATE:"}};
 
 // TODO: compute regex once
-static atop::logcat_out_t
-process_and_zip_logcat_log( atop::shell_out_t&& log,
-                            std::vector<std::string> const& probes )
+static atop::logcat_out_t process_and_zip_logcat_log( atop::shell_out_t&& log,
+                                                      std::vector<std::string> const& probes )
 {
-  // Match dmesg timestamp followed by probe
-  std::string probes_regex{logcat_probe_rgx_tbl[probes[0]]};
-  for(auto it = std::next(std::begin(probes)); it != std::end(probes); ++it)
-    probes_regex += "|" + logcat_probe_rgx_tbl[*it];
-  std::string regex_str = "(" + probes_regex + ")";
+	// Match dmesg timestamp followed by probe
+	std::string probes_regex{logcat_probe_rgx_tbl[probes[0]]};
+	for( auto it = std::next( std::begin( probes ) ); it != std::end( probes ); ++it )
+		probes_regex += "|" + logcat_probe_rgx_tbl[*it];
+	std::string regex_str = "(" + probes_regex + ")";
 
-  auto inserter = [](atop::logcat_out_t& out, std::smatch const& match, std::string const& line)
-  {
-    std::string probe;
-    for (const auto& [key, value] : logcat_probe_rgx_tbl)
-      if (value == match[1].str())
-        probe = key;
+	auto inserter
+	    = []( atop::logcat_out_t& out, std::smatch const& match, std::string const& line ) {
+		      std::string probe;
+		      for( const auto& [key, value]: logcat_probe_rgx_tbl )
+			      if( value == match[1].str() )
+				      probe = key;
 
-    if(probe.empty())
-      throw std::logic_error(fmt::format("Invalid Probe at {0}", __FUNCTION__));
+		      if( probe.empty() )
+			      throw std::logic_error( fmt::format( "Invalid Probe at {0}", __FUNCTION__ ) );
 
-    if(out.find(probe) == out.end())
-      out[probe] = {};
-    out[probe].emplace_back( line );
-  };
+		      if( out.find( probe ) == out.end() )
+			      out[probe] = {};
+		      out[probe].emplace_back( line );
+	      };
 
-  return process_and_zip_shell_out<atop::logcat_out_t>(std::forward<atop::shell_out_t>(log), regex_str, inserter);
+	return process_and_zip_shell_out<atop::logcat_out_t>( std::forward<atop::shell_out_t>( log ),
+	                                                      regex_str, inserter );
 }
 
-atop::LogcatStreamer::LogcatStreamer(std::initializer_list<std::string> probes)
+atop::LogcatStreamer::LogcatStreamer( std::initializer_list<std::string> probes )
     : is_data_fresh( false )
     , latest_ts_()
     , latest_data_()
     , probes_( probes )
     , logcat_tag_args_()
 {
-  for(auto&& e: probes_)
-  {
-    latest_data_[e] = {};
-    logcat_tag_args_ += fmt::format(" {0}:V", e);
-  }
-  // TODO: match timezone to that of device
-  // TODO: below is the correct way to ensure only post-construction data
-  //       however, tz.h is broken for date/2.4.1
-  //       Once fixed below line can be removed and replaced with the
-  //       commented code
-  // auto current_time = date::make_zoned(date::current_zone(),std::chrono::system_clock::now());
-  // this->latest_ts_ = date::format(logcat_time_fmt,
-  //                   date::floor<std::chrono::milliseconds>(current_time.get_local_time()));
-  this->latest_ts_ = "";
+	for( auto&& e: probes_ )
+	{
+		latest_data_[e] = {};
+		logcat_tag_args_ += fmt::format( " {0}:V", e );
+	}
+	// TODO: match timezone to that of device
+	// TODO: below is the correct way to ensure only post-construction data
+	//       however, tz.h is broken for date/2.4.1
+	//       Once fixed below line can be removed and replaced with the
+	//       commented code
+	// auto current_time = date::make_zoned(date::current_zone(),std::chrono::system_clock::now());
+	// this->latest_ts_ = date::format(logcat_time_fmt,
+	//                   date::floor<std::chrono::milliseconds>(current_time.get_local_time()));
+	this->latest_ts_ = "";
 }
 
-static std::string extract_logcat_ts(std::string const& line)
+static std::string extract_logcat_ts( std::string const& line )
 {
-  static std::regex reg{R"(^([0-9\-]+ [0-9:\.]+))"};
-  std::smatch match;
-  if(std::regex_search(line, match, reg))
-    return match[1].str();
-  else
-    return "";
+	static std::regex reg{R"(^([0-9\-]+ [0-9:\.]+))"};
+	std::smatch match;
+	if( std::regex_search( line, match, reg ) )
+		return match[1].str();
+	else
+		return "";
 }
 
 atop::logcat_out_t atop::LogcatStreamer::more()
 {
-  // TODO: can unconditionally add -T flag to process_and_zip_logcat_log
-  //       once tz.h is fixed and LogcatStreamer constructor has been corrected
-  auto additional_args = this->latest_ts_.empty() ? ""
-                                                  : fmt::format(" -T \"{0}\"", this->latest_ts_);
-  auto data = process_and_zip_logcat_log(
-      check_logcat_log(this->logcat_tag_args_
-                            + additional_args), this->probes_);
+	// TODO: can unconditionally add -T flag to process_and_zip_logcat_log
+	//       once tz.h is fixed and LogcatStreamer constructor has been corrected
+	auto additional_args
+	    = this->latest_ts_.empty() ? "" : fmt::format( " -T \"{0}\"", this->latest_ts_ );
+	auto data = process_and_zip_logcat_log(
+	    check_logcat_log( this->logcat_tag_args_ + additional_args ), this->probes_ );
 
-  std::vector<std::chrono::system_clock::time_point> max_tses;
-  for(auto&& kv: data)
-  {
-    std::string tag = kv.first;
-    this->latest_data_[tag].clear();
+	std::vector<std::chrono::system_clock::time_point> max_tses;
+	for( auto&& kv: data )
+	{
+		std::string tag = kv.first;
+		this->latest_data_[tag].clear();
 
-    for( auto it = data[tag].rbegin(); it != data[tag].rend(); ++it )
-        this->latest_data_[tag].push_back( *it );
+		for( auto it = data[tag].rbegin(); it != data[tag].rend(); ++it )
+			this->latest_data_[tag].push_back( *it );
 
-    if(kv.second.size() > 0)
-    {
-      using namespace date;
-      std::chrono::system_clock::time_point tp;
-      std::string ts = extract_logcat_ts(kv.second.back());
-      std::istringstream ss{ts};
-      ss >> date::parse(logcat_time_fmt, tp);
-      max_tses.push_back(tp);
-    }
-  }
+		if( kv.second.size() > 0 )
+		{
+			using namespace date;
+			std::chrono::system_clock::time_point tp;
+			std::string ts = extract_logcat_ts( kv.second.back() );
+			std::istringstream ss{ts};
+			ss >> date::parse( logcat_time_fmt, tp );
+			max_tses.push_back( tp );
+		}
+	}
 
-  if( max_tses.size() > 0 )
-  {
-    // TODO: empty latest_ts_ implies first invocation
-    //       will be fixed once tz.h works through conan (e.g., date/3.0.0)
-    if(!this->latest_ts_.empty())
-      this->is_data_fresh = true;
+	if( max_tses.size() > 0 )
+	{
+		// TODO: empty latest_ts_ implies first invocation
+		//       will be fixed once tz.h works through conan (e.g., date/3.0.0)
+		if( !this->latest_ts_.empty() )
+			this->is_data_fresh = true;
 
-    auto max_ts = *std::max_element(max_tses.begin(), max_tses.end(),
-                                         [](std::chrono::system_clock::time_point const& s1,
-                                            std::chrono::system_clock::time_point const& s2)
-                                         {
-                                           return s1 < s2;
-                                         });
+		auto max_ts = *std::max_element(
+		    max_tses.begin(), max_tses.end(),
+		    []( std::chrono::system_clock::time_point const& s1,
+		        std::chrono::system_clock::time_point const& s2 ) { return s1 < s2; } );
 
-    // Since logcat's "-T <time>" includes entries at <time> too
-    // add 1ms to only get entries *after* <time>
-    max_ts += std::chrono::milliseconds(1);
-    this->latest_ts_ = date::format(logcat_time_fmt,
-                                    date::floor<std::chrono::milliseconds>(max_ts));
-  }
-  else
-    this->is_data_fresh = false;
+		// Since logcat's "-T <time>" includes entries at <time> too
+		// add 1ms to only get entries *after* <time>
+		max_ts += std::chrono::milliseconds( 1 );
+		this->latest_ts_
+		    = date::format( logcat_time_fmt, date::floor<std::chrono::milliseconds>( max_ts ) );
+	}
+	else
+		this->is_data_fresh = false;
 
-  return this->latest_data_;
+	return this->latest_data_;
 }
