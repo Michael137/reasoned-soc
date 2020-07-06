@@ -355,8 +355,8 @@ int main( int argc, const char** argv )
 
 	static std::atomic<bool> exiting = false;
 
-        std::string old_driver_logging_prop = adb_getprop("debug.nn.vlog");
-        static bool driver_logging = atop::util::string2bool(old_driver_logging_prop);
+	std::string old_driver_logging_prop = adb_getprop("debug.nn.vlog");
+	static bool driver_logging = atop::util::string2bool(old_driver_logging_prop);
 
 	sf::Clock deltaClock;
 
@@ -827,11 +827,11 @@ int main( int argc, const char** argv )
 
 	ImGui::SFML::Shutdown();
 
-        streamer_th.join();
-        cpu_th.join();
-        logcat_th.join();
+	streamer_th.join();
+	cpu_th.join();
+	logcat_th.join();
 
-        adb_setprop("debug.nn.vlog", old_driver_logging_prop);
+	adb_setprop("debug.nn.vlog", old_driver_logging_prop);
 
 	return 0;
 }
