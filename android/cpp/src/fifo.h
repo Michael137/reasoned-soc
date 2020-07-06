@@ -1,8 +1,8 @@
 #ifndef FIFO_H_IN
 #define FIFO_H_IN
 
-#include <thread>
 #include <queue>
+#include <thread>
 
 namespace atop
 {
@@ -10,15 +10,15 @@ namespace fifo
 {
 template<typename Data_t> class FIFO
 {
-   public:
-	FIFO() = default;
+  public:
+	FIFO()  = default;
 	~FIFO() = default;
 
-	void push_data(Data_t const&);
+	void push_data( Data_t const& );
 	Data_t pop_data();
-	bool data_avail() const { return !(this->data.empty()); }
+	bool data_avail() const { return !( this->data.empty() ); }
 
-   private:
+  private:
 	std::mutex mtx{};
 	std::queue<Data_t> data{};
 
