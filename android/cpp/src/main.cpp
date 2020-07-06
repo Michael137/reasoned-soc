@@ -347,7 +347,7 @@ int main( int argc, const char** argv )
 	static std::atomic<bool> exiting = false;
 
         std::string old_driver_logging_prop = adb_getprop("debug.nn.vlog");
-        static bool driver_logging = (old_driver_logging_prop == "1") ? true : false;
+        static bool driver_logging = atop::util::string2bool(old_driver_logging_prop);
 
 	sf::Clock deltaClock;
 
