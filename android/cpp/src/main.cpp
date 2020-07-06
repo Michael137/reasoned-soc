@@ -663,14 +663,14 @@ int main( int argc, const char** argv )
 			};
 
 			workloads_running++;
-
-			ImGui::End();
 		}
 		// TODO: warn user if he schedules more thean thread pool size since
 		//       current thread pool queue manager waits for a task to
 		//       finish before removing a task
 		ImGui::SameLine();
 		ImGui::TextUnformatted( fmt::format( "{0} running", workloads_running ).c_str() );
+
+        ImGui::End();
 
 		ImGui::Begin( "Benchmark Options" );
 		switch( atop::string2framework( frameworks[static_cast<size_t>( sel_framework )] ) )
