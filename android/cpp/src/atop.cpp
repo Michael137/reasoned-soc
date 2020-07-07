@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <future>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <regex>
@@ -16,9 +17,12 @@
 #include <utility>
 #include <vector>
 
-#include "ctpl.h"
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
+// #include <date/tz.h> // FIXME: date/2.4.1 cannot find tz db
+// #include <date/date.h> // FIXME: conan's date/2.4.1 date::parse doesn't work
+#include "ctpl.h"
+#include "date.h"
 
 #include "atop.h"
 #include "logger.h"
@@ -30,6 +34,7 @@ using namespace std::chrono_literals;
 static const std::string TFLITE_BENCHMARK_BIN = "/data/local/tmp/benchmark_model";
 static const std::string SNPE_BENCHMARK_BIN
     = "/data/local/tmp/snpebm/artifacts/arm-android-clang6.0/bin/snpe-net-run";
+static const std::string logcat_time_fmt = "%m-%d %T";
 
 static inline void handle_system_return( int status, bool terminate_on_err = false )
 {
@@ -131,6 +136,17 @@ static atop::shell_out_t check_adb_shell_output( std::string const& cmd )
 
 static atop::shell_out_t check_dmesg_log() { return check_adb_shell_output( "dmesg" ); }
 
+static atop::shell_out_t check_logcat_log( std::string const& args = "" )
+{
+	// logcat
+	// -d: dump once
+	// -s: silence other tags
+	// <tag>[:priority]
+	std::string logcat_params = "-d -s";
+	logcat_params += args;
+	return atop::check_console_output( fmt::format( "adb logcat {}", logcat_params ) );
+}
+
 // Zip turns
 //
 // { "PROBE 1 ....",
@@ -146,7 +162,23 @@ static atop::shell_out_t check_dmesg_log() { return check_adb_shell_output( "dme
 //  { "PROBE 2 ....",
 //    "PROBE 2 ....",
 //    "PROBE 2 ...." }
-//    TODO: log can be &&
+template<class Container>
+Container process_and_zip_shell_out(
+    atop::shell_out_t&& log, std::string const& probe_pattern,
+    std::function<void( Container&, const std::smatch&, const std::string& )> inserter )
+{
+	std::regex pattern{probe_pattern};
+	std::smatch match;
+	Container results;
+	for( auto& line: log )
+	{
+		if( std::regex_search( line, match, pattern ) )
+			inserter( results, match, line );
+	}
+
+	return results;
+}
+
 static atop::ioctl_dmesg_t process_and_zip_dmesg_log( atop::shell_out_t&& log,
                                                       std::vector<std::string> const& probes )
 {
@@ -157,18 +189,14 @@ static atop::ioctl_dmesg_t process_and_zip_dmesg_log( atop::shell_out_t&& log,
 	std::string regex_str
 	    = std::string( R"(\[[0-9\.\s]+\]\s+)" ) + "(" + probes_regex.c_str() + ")";
 
-	std::regex pattern{regex_str};
-	std::smatch match;
-	atop::ioctl_dmesg_t results;
-	for( auto& line: log )
-	{
-		if( std::regex_search( line, match, pattern ) )
-		{
-			results[PROBE_IDX( atop::string2dmesgProbes( match[1].str() ) )].emplace_back( line );
-		}
-	}
+	auto inserter
+	    = []( atop::ioctl_dmesg_t& out, std::smatch const& match, std::string const& line ) {
+		      std::string probe = match[1].str();
+		      out[PROBE_IDX( atop::string2dmesgProbes( probe ) )].emplace_back( line );
+	      };
 
-	return results;
+	return process_and_zip_shell_out<atop::ioctl_dmesg_t>( std::forward<atop::shell_out_t>( log ),
+	                                                       regex_str, inserter );
 }
 
 atop::IoctlDmesgStreamer::IoctlDmesgStreamer( std::vector<std::string> const& probes )
@@ -722,4 +750,123 @@ void atop::ioctl_breakdown( std::map<std::string, std::map<std::string, int>>& b
 			throw atop::util::NotImplementedException(
 			    "Breakdown for given probe not implemented" );
 	}
+}
+
+// TODO: could be std::map<LogcatProbes, std::string>
+static std::map<std::string, std::string> logcat_probe_rgx_tbl
+    = {{"ExecutionBuilder", "NNAPI ANDROID"}, {"tflite", "TIME NNAPI_DELEGATE:"}};
+
+// TODO: compute regex once
+static atop::logcat_out_t process_and_zip_logcat_log( atop::shell_out_t&& log,
+                                                      std::vector<std::string> const& probes )
+{
+	// Match dmesg timestamp followed by probe
+	std::string probes_regex{logcat_probe_rgx_tbl[probes[0]]};
+	for( auto it = std::next( std::begin( probes ) ); it != std::end( probes ); ++it )
+		probes_regex += "|" + logcat_probe_rgx_tbl[*it];
+	std::string regex_str = "(" + probes_regex + ")";
+
+	auto inserter
+	    = []( atop::logcat_out_t& out, std::smatch const& match, std::string const& line ) {
+		      std::string probe;
+		      for( const auto& [key, value]: logcat_probe_rgx_tbl )
+			      if( value == match[1].str() )
+				      probe = key;
+
+		      if( probe.empty() )
+			      throw std::logic_error( fmt::format( "Invalid Probe at {0}", __FUNCTION__ ) );
+
+		      if( out.find( probe ) == out.end() )
+			      out[probe] = {};
+		      out[probe].emplace_back( line );
+	      };
+
+	return process_and_zip_shell_out<atop::logcat_out_t>( std::forward<atop::shell_out_t>( log ),
+	                                                      regex_str, inserter );
+}
+
+atop::LogcatStreamer::LogcatStreamer( std::initializer_list<std::string> probes )
+    : is_data_fresh( false )
+    , latest_ts_()
+    , latest_data_()
+    , probes_( probes )
+    , logcat_tag_args_()
+{
+	for( auto&& e: probes_ )
+	{
+		latest_data_[e] = {};
+		logcat_tag_args_ += fmt::format( " {0}:V", e );
+	}
+	// TODO: match timezone to that of device
+	// TODO: below is the correct way to ensure only post-construction data
+	//       however, tz.h is broken for date/2.4.1
+	//       Once fixed below line can be removed and replaced with the
+	//       commented code
+	// auto current_time = date::make_zoned(date::current_zone(),std::chrono::system_clock::now());
+	// this->latest_ts_ = date::format(logcat_time_fmt,
+	//                   date::floor<std::chrono::milliseconds>(current_time.get_local_time()));
+	this->latest_ts_ = "";
+}
+
+static std::string extract_logcat_ts( std::string const& line )
+{
+	static std::regex reg{R"(^([0-9\-]+ [0-9:\.]+))"};
+	std::smatch match;
+	if( std::regex_search( line, match, reg ) )
+		return match[1].str();
+	else
+		return "";
+}
+
+atop::logcat_out_t atop::LogcatStreamer::more()
+{
+	// TODO: can unconditionally add -T flag to process_and_zip_logcat_log
+	//       once tz.h is fixed and LogcatStreamer constructor has been corrected
+	auto additional_args
+	    = this->latest_ts_.empty() ? "" : fmt::format( " -T \"{0}\"", this->latest_ts_ );
+	auto data = process_and_zip_logcat_log(
+	    check_logcat_log( this->logcat_tag_args_ + additional_args ), this->probes_ );
+
+	std::vector<std::chrono::system_clock::time_point> max_tses;
+	for( auto&& kv: data )
+	{
+		std::string tag = kv.first;
+		this->latest_data_[tag].clear();
+
+		for( auto it = data[tag].rbegin(); it != data[tag].rend(); ++it )
+			this->latest_data_[tag].push_back( *it );
+
+		if( kv.second.size() > 0 )
+		{
+			using namespace date;
+			std::chrono::system_clock::time_point tp;
+			std::string ts = extract_logcat_ts( kv.second.back() );
+			std::istringstream ss{ts};
+			ss >> date::parse( logcat_time_fmt, tp );
+			max_tses.push_back( tp );
+		}
+	}
+
+	if( max_tses.size() > 0 )
+	{
+		// TODO: empty latest_ts_ implies first invocation
+		//       will be fixed once tz.h works through conan (e.g., date/3.0.0)
+		if( !this->latest_ts_.empty() )
+			this->is_data_fresh = true;
+
+		auto max_ts = *std::max_element(
+		    max_tses.begin(), max_tses.end(),
+		    []( std::chrono::system_clock::time_point const& s1,
+		        std::chrono::system_clock::time_point const& s2 ) { return s1 < s2; } );
+
+		// Since logcat's "-T <time>" includes entries at <time> too
+		// add 1ms to only get entries *after* <time>
+		max_ts += std::chrono::milliseconds( 1 );
+		this->latest_ts_
+		    = date::format( logcat_time_fmt, date::floor<std::chrono::milliseconds>( max_ts ) );
+	}
+	else
+		this->is_data_fresh = false;
+
+	return this->latest_data_;
 }

@@ -121,7 +121,7 @@ static constexpr auto VERSION_STRING = "atop - Version 0.1";
 bool VERBOSE{false};
 
 // From ImGui Log example
-struct DmesgLog
+struct Log
 {
 	ImGuiTextBuffer Buf;
 	ImGuiTextFilter Filter;
@@ -129,7 +129,7 @@ struct DmesgLog
 	                           // AddLog() calls.
 	bool AutoScroll;           // Keep scrolling if already at the bottom.
 
-	DmesgLog()
+	Log()
 	{
 		AutoScroll = true;
 		Clear();
@@ -313,15 +313,20 @@ int main( int argc, const char** argv )
 
 	atop::IoctlDmesgStreamer streamer;
 
+	// TODO: use enum instead of raw strings; ideally a header-only
+	// solution that generates strings from enums
+	atop::LogcatStreamer logcat_streamer{"ExecutionBuilder", "tflite"};
+
 	// TODO: cpu utilization can be refreshed more often
 	atop::CpuUtilizationStreamer cpu_streamer;
 
 	auto data = streamer.get_interactions();
 	std::map<std::string, double> cpu_data;
+	atop::logcat_out_t logcat_data;
 
 	static std::map<std::string, int> max_interactions{};
 
-	static DmesgLog log;
+	static Log log;
 
 	static bool timer_win_b = true;
 
@@ -329,7 +334,12 @@ int main( int argc, const char** argv )
 
 	static int workloads_running = 0;
 
-	static bool data_got_consumed = false;
+	struct
+	{
+		bool ioctl;
+		bool cpu;
+		bool logcat;
+	} data_got_consumed = {false, false, false};
 
 	static std::atomic<bool> exiting = false;
 
@@ -351,6 +361,16 @@ int main( int argc, const char** argv )
 		}
 	};
 	std::thread streamer_th{stream_ioctl_dmesg};
+
+	atop::fifo::FIFO<atop::logcat_out_t> logcat_fifo;
+	auto stream_logcat = [&]() {
+		while( !exiting )
+		{
+			logcat_fifo.push_data( logcat_streamer.more() );
+			std::this_thread::sleep_for( 1s );
+		}
+	};
+	std::thread logcat_th{stream_logcat};
 
 	atop::fifo::FIFO<std::map<std::string, double>> cpu_fifo;
 	auto stream_cpu = [&]() {
@@ -379,13 +399,22 @@ int main( int argc, const char** argv )
 
 		if( !utilization_paused && ioctl_dmesg_fifo.data_avail() )
 		{
-			data              = ioctl_dmesg_fifo.pop_data();
-			data_got_consumed = false;
+			data                    = ioctl_dmesg_fifo.pop_data();
+			data_got_consumed.ioctl = false;
 		}
 
 		if( !utilization_paused && cpu_fifo.data_avail() )
+		{
 			// TODO: measure stream CPU latency
-			cpu_data = cpu_fifo.pop_data();
+			cpu_data              = cpu_fifo.pop_data();
+			data_got_consumed.cpu = false;
+		}
+
+		if( !utilization_paused && logcat_fifo.data_avail() )
+		{
+			logcat_data              = logcat_fifo.pop_data();
+			data_got_consumed.logcat = false;
+		}
 
 		ImGui::SFML::Update( window, deltaClock.restart() );
 
@@ -508,7 +537,7 @@ int main( int argc, const char** argv )
 
 		ImGui::End();
 
-		if( streamer.is_data_fresh && !data_got_consumed )
+		if( streamer.is_data_fresh && !data_got_consumed.ioctl )
 		{
 			atop::ioctl_breakdown( ioctl_breakdown,
 			                       streamer.get_data()[PROBE_IDX( atop::DmesgProbes::IOCTL )],
@@ -716,21 +745,33 @@ int main( int argc, const char** argv )
 
 		// TODO: add option to change log to logcat, stdout, etc.
 		ImGui::SetNextWindowSize( ImVec2( 500, 400 ), ImGuiCond_FirstUseEver );
-		ImGui::Begin( "Dmesg Log", &show_log_b );
-		if( streamer.is_data_fresh && !data_got_consumed )
+		ImGui::Begin( "Log", &show_log_b );
+		if( streamer.is_data_fresh && !data_got_consumed.ioctl )
 		{
 			auto data_to_log = streamer.get_data()[PROBE_IDX( streamer.utilization_probe )];
 			for( auto it = data_to_log.rbegin(); it != data_to_log.rend(); ++it )
 				log.AddLog( "%s\n", ( *it ).c_str() );
 		}
+
+		// TODO: could be in separate "Logcat" view
+		if( logcat_streamer.is_data_fresh && !data_got_consumed.logcat )
+		{
+			for( auto&& kv: logcat_streamer.get_data() )
+			{
+				for( auto it = kv.second.rbegin(); it != kv.second.rend(); ++it )
+					log.AddLog( "%s\n", ( *it ).c_str() );
+			}
+		}
 		ImGui::End();
 
 		// Actually call in the regular Log helper (which will Begin() into
 		// the same window as we just did)
-		log.Draw( "Dmesg Log", &show_log_b );
+		log.Draw( "Log", &show_log_b );
 
 		// One iteration => data in streamer has been processed
-		data_got_consumed = true;
+		data_got_consumed.logcat = true;
+		data_got_consumed.ioctl  = true;
+		data_got_consumed.cpu    = true;
 
 		window.clear();
 		ImGui::SFML::Render( window );
@@ -741,6 +782,7 @@ int main( int argc, const char** argv )
 
 	streamer_th.join();
 	cpu_th.join();
+	logcat_th.join();
 
 	adb_setprop( "debug.nn.vlog", old_driver_logging_prop );
 

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <array>
 #include <future>
+#include <initializer_list>
 #include <map>
 #include <string>
 #include <unordered_map>
@@ -106,7 +107,7 @@ inline DmesgProbes string2dmesgProbes( std::string pr )
 		throw std::runtime_error( fmt::format( "Enum {0} not defined", pr ) );
 }
 
-using ioctl_dmesg_t = std::array<std::vector<std::string>, PROBE_IDX( DmesgProbes::LAST )>;
+using ioctl_dmesg_t = std::array<shell_out_t, PROBE_IDX( DmesgProbes::LAST )>;
 
 class IoctlDmesgStreamer
 {
@@ -174,6 +175,40 @@ struct BenchmarkStats
 	                                                   // Framework overhead for delegation
 	                                                   {"delegation", 0},
 	                                                   {"init", 0}};
+};
+
+enum class LogcatProbes : int
+{
+	ExecutionBuilder = 0,
+	TfLite           = 1,
+
+	// End marker; do not add anything below
+	// Increment for each new entry
+	LAST = 2
+};
+
+std::map<std::string, LogcatProbes> const logcat_probes_table
+    = {{"ExecutionBuilder", LogcatProbes::ExecutionBuilder}, {"tflite", LogcatProbes::TfLite}};
+
+using logcat_out_t = std::map<std::string, shell_out_t>;
+class LogcatStreamer
+{
+  public:
+	explicit LogcatStreamer( std::initializer_list<std::string> probes );
+	~LogcatStreamer()                       = default;
+	LogcatStreamer( LogcatStreamer const& ) = delete;
+	LogcatStreamer( LogcatStreamer&& )      = delete;
+
+	logcat_out_t const& get_data() { return this->latest_data_; }
+	logcat_out_t more();
+
+	bool is_data_fresh;
+
+  private:
+	std::string latest_ts_;
+	logcat_out_t latest_data_;
+	std::vector<std::string> probes_;
+	std::string logcat_tag_args_;
 };
 
 void summarize_benchmark_output( shell_out_t const&, atop::Frameworks, BenchmarkStats& );
