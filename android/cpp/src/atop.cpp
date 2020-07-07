@@ -17,8 +17,6 @@
 #include <utility>
 #include <vector>
 
-#include <iostream>
-
 #include <fmt/format.h>
 #include <spdlog/spdlog.h>
 // #include <date/tz.h> // FIXME: date/2.4.1 cannot find tz db
