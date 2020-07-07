@@ -20,7 +20,7 @@ double extract_time( std::string const& );
 
 class NotImplementedException : public std::logic_error
 {
-   public:
+  public:
 	explicit NotImplementedException( std::string const& msg )
 	    : logic_error( msg )
 	{
@@ -30,15 +30,12 @@ class NotImplementedException : public std::logic_error
 	{
 	}
 
-	virtual char const* what() const noexcept override
-	{
-		return "Function not yet implemented.";
-	}
+	virtual char const* what() const noexcept override { return "Function not yet implemented."; }
 };
 
 class RandomSelector
 {
-   public:
+  public:
 	RandomSelector()
 	    : gen( std::mt19937( std::random_device()() ) )
 	{
@@ -46,23 +43,23 @@ class RandomSelector
 
 	template<typename Iter> Iter select( Iter start, Iter end )
 	{
-		std::uniform_int_distribution<> dis(
-		    0, static_cast<int>( std::distance( start, end ) - 1 ) );
+		std::uniform_int_distribution<> dis( 0,
+		                                     static_cast<int>( std::distance( start, end ) - 1 ) );
 		std::advance( start, dis( this->gen ) );
 		return start;
 	}
 
-	template<typename Container>
-	auto operator()( const Container& c ) -> decltype( *begin( c ) )&
+	template<typename Container> auto operator()( const Container& c ) -> decltype( *begin( c ) )&
 	{
 		return *select( begin( c ), end( c ) );
 	}
 
-   private:
+  private:
 	std::mt19937 gen;
 };
 
 inline std::string bool2string( bool b ) { return b ? "true" : "false"; }
+inline bool string2bool( std::string_view b ) { return ( b == "true" || b == "1" ) ? true : false; }
 
 } // namespace util
 } // namespace atop

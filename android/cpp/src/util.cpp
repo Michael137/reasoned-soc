@@ -11,18 +11,16 @@
 // trim from start (in place)
 void atop::util::ltrim( std::string& s )
 {
-	s.erase( s.begin(), std::find_if( s.begin(), s.end(), []( int ch ) {
-		         return !std::isspace( ch );
-	         } ) );
+	s.erase( s.begin(),
+	         std::find_if( s.begin(), s.end(), []( int ch ) { return !std::isspace( ch ); } ) );
 }
 
 // trim from end (in place)
 void atop::util::rtrim( std::string& s )
 {
-	s.erase( std::find_if( s.rbegin(), s.rend(),
-	                       []( int ch ) { return !std::isspace( ch ); } )
-	             .base(),
-	         s.end() );
+	s.erase(
+	    std::find_if( s.rbegin(), s.rend(), []( int ch ) { return !std::isspace( ch ); } ).base(),
+	    s.end() );
 }
 
 // trim from both ends (in place)
@@ -32,8 +30,7 @@ void atop::util::trim( std::string& s )
 	rtrim( s );
 }
 
-std::vector<std::string> atop::util::split( const std::string& s,
-                                            char delimiter )
+std::vector<std::string> atop::util::split( const std::string& s, char delimiter )
 {
 	std::vector<std::string> tokens;
 	std::string token;
@@ -52,16 +49,14 @@ double atop::util::extract_time( std::string const& str )
 	std::regex pattern{R"(\[(.*?)\])"};
 	std::smatch match;
 
-	if( std::regex_search( str, match, pattern,
-	                       std::regex_constants::match_continuous ) )
+	if( std::regex_search( str, match, pattern, std::regex_constants::match_continuous ) )
 	{
 		std::string ts_str = match[1].str();
 
 		return std::stod( ts_str );
 	}
 	else
-		throw std::runtime_error(
-		    "Error during log line parsing: no timestamp found" );
+		throw std::runtime_error( "Error during log line parsing: no timestamp found" );
 }
 
 std::string atop::util::basepath( std::string const& file_path )
