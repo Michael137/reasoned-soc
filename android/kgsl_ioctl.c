@@ -15,8 +15,15 @@
 #include <linux/compat.h>
 #include <linux/uaccess.h>
 #include <linux/fs.h>
-#include "kgsl_device.h"
+#include <linux/timekeeping.h>
+#include "kgsl_device.h" // contains logging_enabled
 #include "kgsl_sync.h"
+
+#define PRINTK_IF(fmt, args...) \
+	do { \
+		if(atomic_read(&logging_enabled)) \
+			pr_alert(fmt, ## args); \
+	} while (0)
 
 static const struct kgsl_ioctl kgsl_ioctl_funcs[] = {
 	KGSL_IOCTL_FUNC(IOCTL_KGSL_DEVICE_GETPROPERTY,
@@ -184,8 +191,11 @@ long kgsl_ioctl_helper(struct file *filep, unsigned int cmd, unsigned long arg,
 			DEFAULT_RATELIMIT_BURST);
 
 	char* decoded = decode_ioc(cmd);
+	struct timespec64 start = {0,0};
+	struct timespec64 end = {0,0};
+	struct timespec64 final = {0,0};
 
-	printk(KERN_ALERT "IOCTL kgsl: (app: %s) (cmd: %s [%lu]) (device: %s)\n", current->comm, decoded, cmd, dev_priv->device->name);
+	ktime_get_ts64(&start);
 
 	if (nr >= len || cmds[nr].func == NULL)
 		return -ENOIOCTLCMD;
@@ -207,6 +217,10 @@ long kgsl_ioctl_helper(struct file *filep, unsigned int cmd, unsigned long arg,
 
 	if (ret == 0 && _IOC_SIZE(cmds[nr].cmd))
 		ret = kgsl_ioctl_copy_out(cmds[nr].cmd, cmd, arg, data);
+
+	ktime_get_ts64(&end);
+	final = timespec64_sub(end, start);
+	PRINTK_IF("IOCTL kgsl: (app: %s) (cmd: %s [%lu]) (device: %s) (time: %llu.%0.9u)\n", current->comm, decoded, cmd, dev_priv->device->name,(u64)final.tv_sec, (u32)final.tv_nsec);
 
 	return ret;
 }
