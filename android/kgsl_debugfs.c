@@ -56,6 +56,7 @@ KGSL_DEBUGFS_LOG(cmd_log);
 KGSL_DEBUGFS_LOG(ctxt_log);
 KGSL_DEBUGFS_LOG(mem_log);
 KGSL_DEBUGFS_LOG(pwr_log);
+KGSL_DEBUGFS_LOG(perf_log);
 
 static int _strict_set(void *data, u64 val)
 {
@@ -90,6 +91,8 @@ void kgsl_device_debugfs_init(struct kgsl_device *device)
 				&mem_log_fops);
 	debugfs_create_file("log_level_pwr", 0644, device->d_debugfs, device,
 				&pwr_log_fops);
+	debugfs_create_file("log_level_perf", 0644, device->d_debugfs, device,
+				&perf_log_fops);
 }
 
 void kgsl_device_debugfs_close(struct kgsl_device *device)
@@ -381,6 +384,7 @@ static int globals_release(struct inode *inode, struct file *file)
 	return single_release(inode, file);
 }
 
+#if 0
 static int enable_logging()
 {
 	atomic_set(&logging_enabled, 1);
@@ -438,7 +442,6 @@ static ssize_t globals_write(struct file *file,
 	return ret ?: count;
 }
 
-
 static ssize_t globals_read(struct file *filp, char __user *buffer,
 			    size_t count, loff_t *position)
 {
@@ -452,11 +455,11 @@ static ssize_t globals_read(struct file *filp, char __user *buffer,
 	if (!status_string)
 		goto bail;
 	
-	logging_status = get_logging_status();
-	len = scnprintf(status_string, buf_sz, "logging status: %d\n", logging_status);
-       
 	// Make sure logging status is printed last for convenience
 	ret = seq_read(filp, buffer, count, position);
+
+	logging_status = get_logging_status();
+	len = scnprintf(status_string, buf_sz, "logging status: %d\n", logging_status);
 
 	if (len > buf_sz)
 		len = buf_sz;
@@ -466,11 +469,13 @@ static ssize_t globals_read(struct file *filp, char __user *buffer,
 bail:
 	return ret;
 }
+#endif
 
 static const struct file_operations global_fops = {
 	.open = globals_open,
-	.read = globals_read,
-	.write = globals_write,
+	//.read = globals_read,
+	.read = seq_read,
+	//.write = globals_write,
 	.llseek = seq_lseek,
 	.release = globals_release,
 };

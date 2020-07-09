@@ -182,6 +182,7 @@ long kgsl_ioctl_helper(struct file *filep, unsigned int cmd, unsigned long arg,
 		const struct kgsl_ioctl *cmds, int len)
 {
 	struct kgsl_device_private *dev_priv = filep->private_data;
+	struct kgsl_device* device = dev_priv->device;
 	unsigned char data[128] = { 0 };
 	unsigned int nr = _IOC_NR(cmd);
 	long ret;
@@ -220,7 +221,8 @@ long kgsl_ioctl_helper(struct file *filep, unsigned int cmd, unsigned long arg,
 
 	ktime_get_ts64(&end);
 	final = timespec64_sub(end, start);
-	PRINTK_IF("IOCTL kgsl: (app: %s) (cmd: %s [%lu]) (device: %s) (time: %llu.%0.9u)\n", current->comm, decoded, cmd, dev_priv->device->name,(u64)final.tv_sec, (u32)final.tv_nsec);
+	// PRINTK_IF("IOCTL kgsl: (app: %s) (cmd: %s [%lu]) (device: %s) (time: %llu.%0.9u)\n", current->comm, decoded, cmd, dev_priv->device->name,(u64)final.tv_sec, (u32)final.tv_nsec);
+	KGSL_PERF_INFO(device, "IOCTL kgsl: (app: %s) (cmd: %s [%lu]) (device: %s) (time: %llu.%0.9u)\n", current->comm, decoded, cmd, dev_priv->device->name,(u64)final.tv_sec, (u32)final.tv_nsec);
 
 	return ret;
 }

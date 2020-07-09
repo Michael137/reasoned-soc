@@ -324,6 +324,7 @@ struct kgsl_device {
 	int ctxt_log;
 	int drv_log;
 	int mem_log;
+	int perf_log;
 	int pwr_log;
 	struct kgsl_pwrscale pwrscale;
 
@@ -1009,10 +1010,12 @@ struct kgsl_pwr_limit {
 	struct kgsl_device *device;
 };
 
+#if 0
 #ifdef KGSL_LOGGING_DEFINE
 atomic_t logging_enabled = ATOMIC_INIT(1);
 #else
 extern atomic_t logging_enabled;
+#endif
 #endif
 
 #endif  /* __KGSL_DEVICE_H */
