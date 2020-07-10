@@ -216,7 +216,9 @@ void summarize_benchmark_output( shell_out_t const&, atop::Frameworks, Benchmark
 void ioctl_breakdown( std::map<std::string, std::map<std::string, int>>& breakdown,
                       atop::shell_out_t const& data, atop::DmesgProbes probe );
 
-void update_tflite_offload( atop::shell_out_t const& data, atop::BenchmarkStats& stats );
+void update_tflite_kernel_offload( atop::shell_out_t const& data, atop::BenchmarkStats& stats );
+void update_tflite_kernel_gpu_offload( atop::shell_out_t const& data, atop::BenchmarkStats& stats );
+void update_tflite_driver_offload( atop::shell_out_t const& data, atop::BenchmarkStats& stats );
 
 } // namespace atop
 
