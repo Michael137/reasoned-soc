@@ -70,34 +70,61 @@ static std::string adb_getprop(std::string_view prop) {
         return "";
 }
 
-static void adb_setprop(std::string_view prop, std::string prop_val) {
-    atop::check_console_output(fmt::format("adb shell setprop {0} \"{1}\"", prop, prop_val));
+static void adb_setprop( std::string_view prop, std::string prop_val )
+{
+    atop::check_console_output(fmt::format("adb shell setprop {0} {1}", prop, prop_val));
 }
 
-static void toggle_driver_logging() {
-    std::string prop = "debug.nn.vlog";
-    auto output = adb_getprop(prop);
-    int prop_val = 0;
-    if (!output.empty())
-        prop_val = std::stoi(output);
+static void enable_kernel_logging()
+{
+    LOG("Enabling kernel logging");
 
-    // Toggle
-    int new_val = 1 - prop_val;
-    LOG(fmt::format("Setting {0} from {1} to {2}", prop, prop_val, new_val));
-    adb_setprop(prop, std::to_string(new_val));
+    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/adsprpc/global")");
+    atop::check_console_output(R"(adb shell "echo 6 >> /sys/kernel/debug/kgsl/kgsl-3d0/log_level_perf")");
+    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/camera_sync/logging_enabled")");
+    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/cam_sensor/logging_enabled")");
+}
+
+static void disable_kernel_logging()
+{
+    LOG("Disabling kernel logging");
+
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/adsprpc/global")");
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/kgsl/kgsl-3d0/log_level_perf")");
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/camera_sync/logging_enabled")");
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/cam_sensor/logging_enabled")");
+}
+
+static void toggle_driver_logging()
+{
+	std::string prop = "debug.nn.vlog";
+	auto output      = adb_getprop( prop );
+	int prop_val     = 0;
+	if( !output.empty() )
+		prop_val = std::stoi( output );
+
+	// Toggle
+	int new_val = 1 - prop_val;
+	LOG( fmt::format( "Setting {0} from {1} to {2}", prop, prop_val, new_val ) );
+	adb_setprop( prop, std::to_string( new_val ) );
+
+    if(new_val == 1)
+        enable_kernel_logging();
+    else
+        disable_kernel_logging();
 }
 
 // Until is_ready() is in the C++ standard use this to check
 // whether a std::future result is ready
-template<typename R>
-bool is_ready(std::future<R> const &f) {
-    return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+template<typename R> bool is_ready( std::future<R> const& f )
+{
+	return f.wait_for( std::chrono::seconds( 0 ) ) == std::future_status::ready;
 }
 
 using namespace std::chrono_literals;
 
 static constexpr auto USAGE =
-        R"(atop - accelerator viewer
+    R"(atop - accelerator viewer
 	  Usage:
 			atop [options]
 
@@ -330,7 +357,9 @@ int main(int argc, const char **argv) {
 
     sf::Clock deltaClock;
 
-    atop::logger::verbose_info("Finished initialization");
+    enable_kernel_logging();
+
+	atop::logger::verbose_info( "Finished initialization" );
 
     atop::fifo::FIFO<std::map<std::string, int>> ioctl_dmesg_fifo;
     auto stream_ioctl_dmesg = [&]() {
@@ -754,7 +783,8 @@ int main(int argc, const char **argv) {
     cpu_th.join();
     logcat_th.join();
 
-    adb_setprop("debug.nn.vlog", old_driver_logging_prop);
+	adb_setprop( "debug.nn.vlog", old_driver_logging_prop );
+	disable_kernel_logging();
 
     return 0;
 }
