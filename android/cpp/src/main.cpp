@@ -78,7 +78,27 @@ static std::string adb_getprop( std::string_view prop )
 
 static void adb_setprop( std::string_view prop, std::string prop_val )
 {
-	atop::check_console_output( fmt::format( "adb shell setprop {0} {1}", prop, prop_val ) );
+    atop::check_console_output(fmt::format("adb shell setprop {0} {1}", prop, prop_val));
+}
+
+static void enable_kernel_logging()
+{
+    LOG("Enabling kernel logging");
+
+    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/adsprpc/global")");
+    atop::check_console_output(R"(adb shell "echo 6 >> /sys/kernel/debug/kgsl/kgsl-3d0/log_level_perf")");
+    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/camera_sync/logging_enabled")");
+    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/cam_sensor/logging_enabled")");
+}
+
+static void disable_kernel_logging()
+{
+    LOG("Disabling kernel logging");
+
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/adsprpc/global")");
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/kgsl/kgsl-3d0/log_level_perf")");
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/camera_sync/logging_enabled")");
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/cam_sensor/logging_enabled")");
 }
 
 static void toggle_driver_logging()
@@ -93,6 +113,11 @@ static void toggle_driver_logging()
 	int new_val = 1 - prop_val;
 	LOG( fmt::format( "Setting {0} from {1} to {2}", prop, prop_val, new_val ) );
 	adb_setprop( prop, std::to_string( new_val ) );
+
+    if(new_val == 1)
+        enable_kernel_logging();
+    else
+        disable_kernel_logging();
 }
 
 // Until is_ready() is in the C++ standard use this to check
@@ -347,6 +372,8 @@ int main( int argc, const char** argv )
 	static bool driver_logging          = atop::util::string2bool( old_driver_logging_prop );
 
 	sf::Clock deltaClock;
+
+    enable_kernel_logging();
 
 	atop::logger::verbose_info( "Finished initialization" );
 
@@ -785,6 +812,7 @@ int main( int argc, const char** argv )
 	logcat_th.join();
 
 	adb_setprop( "debug.nn.vlog", old_driver_logging_prop );
+	disable_kernel_logging();
 
 	return 0;
 }
