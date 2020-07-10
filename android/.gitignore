@@ -1,3 +1,4 @@
 kernel/
 *.out
 __pycache__/
+*.a
