@@ -75,24 +75,39 @@ static void adb_setprop( std::string_view prop, std::string prop_val )
     atop::check_console_output(fmt::format("adb shell setprop {0} {1}", prop, prop_val));
 }
 
+static void enable_dsp_log() {atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/adsprpc/global")");}
+static void enable_gpu_log() {atop::check_console_output(R"(adb shell "echo 6 >> /sys/kernel/debug/kgsl/kgsl-3d0/log_level_perf")");}
+static void enable_cam_log() {
+    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/camera_sync/logging_enabled")");
+    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/cam_sensor/logging_enabled")");
+}
+static void disable_dsp_log() {atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/adsprpc/global")");}
+static void disable_gpu_log() {atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/kgsl/kgsl-3d0/log_level_perf")");}
+static void disable_cam_log() {
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/camera_sync/logging_enabled")");
+    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/cam_sensor/logging_enabled")");
+}
+
+// Potentially useful debugging props:
+//      vendor.fastrpc.debug.trace
+//      vendor.fastrpc.perf.kernel
+//      vendor.fastrpc.perf.adsp
 static void enable_kernel_logging()
 {
     LOG("Enabling kernel logging");
 
-    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/adsprpc/global")");
-    atop::check_console_output(R"(adb shell "echo 6 >> /sys/kernel/debug/kgsl/kgsl-3d0/log_level_perf")");
-    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/camera_sync/logging_enabled")");
-    atop::check_console_output(R"(adb shell "echo 1 >> /sys/kernel/debug/cam_sensor/logging_enabled")");
+    enable_dsp_log();
+    enable_cam_log();
+    enable_gpu_log();
 }
 
 static void disable_kernel_logging()
 {
     LOG("Disabling kernel logging");
 
-    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/adsprpc/global")");
-    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/kgsl/kgsl-3d0/log_level_perf")");
-    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/camera_sync/logging_enabled")");
-    atop::check_console_output(R"(adb shell "echo 0 >> /sys/kernel/debug/cam_sensor/logging_enabled")");
+    disable_dsp_log();
+    disable_cam_log();
+    disable_gpu_log();
 }
 
 static void toggle_driver_logging()
@@ -108,10 +123,10 @@ static void toggle_driver_logging()
 	LOG( fmt::format( "Setting {0} from {1} to {2}", prop, prop_val, new_val ) );
 	adb_setprop( prop, std::to_string( new_val ) );
 
-    if(new_val == 1)
-        enable_kernel_logging();
-    else
-        disable_kernel_logging();
+    // if(new_val == 1)
+    //     enable_kernel_logging();
+    // else
+    //     disable_kernel_logging();
 }
 
 // Until is_ready() is in the C++ standard use this to check
@@ -238,7 +253,7 @@ struct Log {
 
 // TODO: num_runs could be passed using BenchmarkInfo struct
 static void ShowBenchmarkSummary(bool *popen,
-                                 atop::BenchmarkStats const &stats,
+                                 atop::BenchmarkStats &stats,
                                  int num_runs, std::string const &fr) {
     ImGui::Begin("Benchmark Summary", popen);
     for (auto &&p: stats.stats) {
@@ -253,10 +268,14 @@ static void ShowBenchmarkSummary(bool *popen,
                                 static_cast<double>( p.second ) / 1.0e3)
                             .c_str());
     }
+
+    if(ImGui::Button("Clear"))
+        stats.stats.clear();
+
     ImGui::End();
 }
 
-static void ShowIoctlBreakdown(std::map<std::string, std::map<std::string, int>> const &breakdown,
+static void ShowIoctlBreakdown(std::map<std::string, std::map<std::string, int>> &breakdown,
                                int num_runs) {
     ImGui::Begin("Breakdown");
     for (auto &&p: breakdown) {
@@ -267,6 +286,10 @@ static void ShowIoctlBreakdown(std::map<std::string, std::map<std::string, int>>
                                            .c_str());
         }
     }
+
+    if(ImGui::Button("Clear"))
+        breakdown.clear();
+
     ImGui::End();
 }
 
@@ -307,10 +330,10 @@ int main(int argc, const char **argv) {
             imgui_models_vec(atop::get_models_on_device(
                     atop::string2framework(frameworks[static_cast<size_t>( sel_framework )])))};
 
-    static int num_procs = 1;
-    static int num_runs = 1;
-    static int num_cpu_threads = 6; // Snapdragon has 6 CPUs
-    static int num_warmup_runs = 0;
+    int num_procs = 1;
+    int num_runs = 1;
+    int num_cpu_threads = 4;
+    int num_warmup_runs = 0;
 
     static bool utilization_paused = false;
     static bool cpu_fallback = false;
@@ -327,7 +350,6 @@ int main(int argc, const char **argv) {
     // solution that generates strings from enums
     atop::LogcatStreamer logcat_streamer{"ExecutionBuilder", "tflite"};
 
-    // TODO: cpu utilization can be refreshed more often
     atop::CpuUtilizationStreamer cpu_streamer;
 
     auto data = streamer.get_interactions();
@@ -349,6 +371,12 @@ int main(int argc, const char **argv) {
         bool cpu;
         bool logcat;
     } data_got_consumed = {false, false, false};
+
+    struct {
+        bool dsp;
+        bool gpu;
+        bool cam;
+    } log_status = {true, true, true}; // All enabled since we call enable_kernel_logging() on startup
 
     static std::atomic<bool> exiting = false;
 
@@ -766,6 +794,30 @@ int main(int argc, const char **argv) {
         // Actually call in the regular Log helper (which will Begin() into
         // the same window as we just did)
         log.Draw("Log", &show_log_b);
+
+        ImGui::Begin("Advanced");
+        if(ImGui::Button(log_status.dsp ? "Stop DSP" : "Log DSP")) {
+            if(log_status.dsp)
+                disable_dsp_log();
+            else
+                enable_dsp_log();
+            log_status.dsp ^= true;
+        }
+        if(ImGui::Button(log_status.gpu ? "Stop GPU" : "Log GPU")){
+            if(log_status.gpu)
+                disable_gpu_log();
+            else
+                enable_gpu_log();
+            log_status.gpu ^= true;
+        }
+        if(ImGui::Button(log_status.cam ? "Stop cam.": "Log cam.")) {
+            if(log_status.cam)
+                disable_cam_log();
+            else
+                enable_cam_log();
+            log_status.cam ^= true;
+        }
+        ImGui::End();
 
         // One iteration => data in streamer has been processed
         data_got_consumed.logcat = true;
