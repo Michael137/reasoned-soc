@@ -1,8 +1,9 @@
 kernel/
 *.out
 __pycache__/
-*.a
 
 .ipynb_checkpoints/
 *.png
 cmake-build-debug/
+
+*.a
