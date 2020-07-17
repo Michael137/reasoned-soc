@@ -108,7 +108,10 @@ KGSL_LOG_ERR(_dev->dev, _dev->pwr_log, fmt, ##args)
 KGSL_LOG_CRIT(_dev->dev, _dev->pwr_log, fmt, ##args)
 
 #define KGSL_PERF_INFO(_dev, fmt, args...) \
-		KGSL_LOG_INFO(_dev->dev, _dev->perf_log, fmt, ##args)
+		do {			   \
+		if(_dev->perf_log >= 6)	   \
+			pr_info(fmt, ##args); \
+		} while(0)
 
 /*
  * Core error messages - these are for core KGSL functions that have
