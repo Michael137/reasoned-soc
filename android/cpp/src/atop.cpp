@@ -10,7 +10,6 @@
 #include <initializer_list>
 #include <map>
 #include <memory>
-#include <regex>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -154,14 +153,13 @@ static atop::shell_out_t check_logcat_log(std::string const &args = "") {
 //    "PROBE 2 ...." }
 template<class Container>
 Container process_and_zip_shell_out(
-        atop::shell_out_t &&log, std::string const &probe_pattern,
-        std::function<void(Container &, const std::smatch &, const std::string &)> inserter) {
-    std::regex pattern{probe_pattern};
-    std::smatch match;
+        atop::shell_out_t &&log, RE2 const &probe_pattern,
+        std::function<void(Container &, std::vector<std::string> const &, std::string_view)> inserter) {
+    std::vector<std::string> matches;
     Container results;
     for (auto &line: log) {
-        if (std::regex_search(line, match, pattern))
-            inserter(results, match, line);
+        if (atop::util::regex_find(probe_pattern, line, matches))
+            inserter(results, matches, line);
     }
 
     return results;
@@ -174,11 +172,12 @@ static atop::ioctl_dmesg_t process_and_zip_dmesg_log(atop::shell_out_t &&log,
             std::next(probes.begin()), probes.end(), probes[0],
             [](std::string const &a, std::string const &b) { return a + "|" + b; });
     std::string regex_str
-            = std::string(R"(\[[0-9\.\s]+\]\s+)") + "(" + probes_regex.c_str() + ")";
+            = std::string(R"(\[[\d\.\s]+\]\s+)") + "(" + probes_regex.c_str() + ")";
+    RE2 pattern{ regex_str };
 
     auto inserter
-            = [](atop::ioctl_dmesg_t &out, std::smatch const &match, std::string const &line) {
-                std::string probe = match[1].str();
+            = [](atop::ioctl_dmesg_t &out, std::vector<std::string> const &matches, std::string_view line) {
+                std::string probe = matches[0];
                 out[PROBE_IDX(atop::string2dmesgProbes(probe))].emplace_back(line);
             };
 
@@ -240,12 +239,12 @@ atop::ioctl_dmesg_t const &atop::IoctlDmesgStreamer::more() {
     return this->latest_data;
 }
 
-static std::string extract_dmesg_accl_tag(std::string const &str) {
-    std::regex pattern{R"(IOCTL ([A-Za-z0-9_]+):)"};
-    std::smatch match;
+static std::string extract_dmesg_accl_tag(std::string_view str) {
+    RE2 pattern{R"(IOCTL ([\w]+):)"};
+    std::vector<std::string> matches;
 
-    if (std::regex_search(str, match, pattern)) {
-        std::string ts_str = match[1].str();
+    if (atop::util::regex_find(pattern, str, matches)) {
+        std::string ts_str = matches[0];
         atop::util::trim(ts_str);
 
         return ts_str;
@@ -552,24 +551,25 @@ std::map<std::string, double> const &atop::CpuUtilizationStreamer::utilizations(
 static void summarize_tflite_benchmark_output(atop::shell_out_t const &out,
                                               atop::BenchmarkStats &stats) {
     char *end;
+    // Pattern extracts "Init" and "Inference (avg)" results
+    static const RE2 pattern{
+            R"(Init: ([\d]+)([\w:\s,\(\)].*)Inference \(avg\): ([\d]+))"};
+
     for (auto &line: out) {
         if (line.rfind("PRE-PROCESSING", 0) == 0) {
             stats.stats["preproc"]
                     = strtoull(atop::util::split(line, ' ')[1].c_str(), &end, 10);
         }
         if (line.rfind("Inference timings in us", 0) == 0) {
-            // Extract "Init" and "Inference (avg)" results
-            std::regex pattern{
-                    R"(Init: ([0-9]+)([0-9a-zA-Z:\s,\(\)].*)Inference \(avg\): ([0-9]+))"};
-            std::smatch match;
+            std::vector<std::string> matches;
 
-            if (std::regex_search(line, match, pattern)) {
-                stats.stats["init"] = strtoull(match[1].str().c_str(), &end, 10);
+            if (atop::util::regex_find(pattern, line, matches)) {
+                stats.stats["init"] = strtoull(matches[0].c_str(), &end, 10);
                 // Inference time in tflite benchmark doesn't include
                 // pre-/post-processing
                 // TODO: account for offload?
                 stats.stats["inference"]
-                        = strtoull(match[3].str().c_str(), &end, 10);
+                        = strtoull(matches[2].c_str(), &end, 10);
             }
         }
     }
@@ -579,6 +579,9 @@ static void summarize_snpe_benchmark_output(atop::shell_out_t const &out,
                                             atop::BenchmarkStats &stats) {
     bool start_parsing = false;
     char *end;
+
+    // Match e.g. Create Networks(s): 12345 us
+    static const RE2 pattern{R"(([\w\s\(\)-]+):\s([\d]+) us)"};
 
     // SNPE Stats
     std::map<std::string, uint64_t> snpe_stats;
@@ -602,16 +605,14 @@ static void summarize_snpe_benchmark_output(atop::shell_out_t const &out,
         }
 
         if (start_parsing) {
-            // Match e.g. Create Networks(s): 12345 us
-            std::regex pattern{R"(([A-Za-z\s\(\)-]+):\s([0-9]+) us)"};
-            std::smatch match;
+            std::vector<std::string> matches;
 
-            if (std::regex_search(line, match, pattern)) {
-                uint64_t val = strtoull(match[2].str().c_str(), &end, 10);
-                if (auto it{snpe_stats.find(match[1].str())}; it != std::end(snpe_stats))
+            if (atop::util::regex_find(pattern, line, matches)) {
+                uint64_t val = strtoull(matches[1].c_str(), &end, 10);
+                if (auto it{snpe_stats.find(matches[0])}; it != std::end(snpe_stats))
                     (*it).second += val;
                 else
-                    snpe_stats.insert(std::pair<std::string, uint64_t>(match[1], val));
+                    snpe_stats.insert(std::pair<std::string, uint64_t>(matches[0], val));
             }
         }
     }
@@ -645,14 +646,13 @@ void atop::summarize_benchmark_output(shell_out_t const &out, atop::Frameworks f
 }
 
 static void ioctl_breakdown_impl(std::map<std::string, std::map<std::string, int>> &breakdown,
-                                 atop::shell_out_t const &data, std::string const &pattern_str) {
-    std::smatch match;
-    std::regex pattern{pattern_str};
+                                 atop::shell_out_t const &data, RE2 const &pattern) {
+    std::vector<std::string> matches;
 
     for (auto &&line: data) {
-        if (std::regex_search(line, match, pattern)) {
-            std::string app = match[1].str();
-            std::string cmd = match[2].str();
+        if (atop::util::regex_find(pattern, line, matches)) {
+            std::string app = matches[0];
+            std::string cmd = matches[1];
             // Application in map?
             if (auto it{breakdown.find(app)}; it == std::end(breakdown))
                 breakdown.insert(std::pair<std::string, std::map<std::string, int>>(app, {}));
@@ -669,18 +669,20 @@ void atop::ioctl_breakdown(std::map<std::string, std::map<std::string, int>> &br
                            atop::shell_out_t const &data, atop::DmesgProbes probe) {
     switch (probe) {
         case atop::DmesgProbes::IOCTL: {
-            std::string tag_pattern = R"([\(\)a-z\s:0-9\-_]*)";
-            std::string cmd_pattern = R"(\(cmd: ([a-zA-Z0-9\s_]+) \[[0-9]+\]\))";
+            std::string tag_pattern = R"([\(\)\w\s:\-]*)";
+            std::string cmd_pattern = R"(\(cmd: ([\w\s]+) \[[\d]+\]\))";
             std::string app_pattern
-                    = tag_pattern + R"(\(app: ([a-zA-Z_:@\-0-9]+)\))" + " " + cmd_pattern + tag_pattern;
-            auto pattern_str = R"(\[[0-9\.\s*]+\] IOCTL [a-zA-Z]+)" + app_pattern;
-            ioctl_breakdown_impl(breakdown, data, pattern_str);
+                    = tag_pattern + R"(\(app: ([\w:@\-]+)\))" + " " + cmd_pattern + tag_pattern;
+            auto pattern_str = R"(\[[\d\.\s*]+\] IOCTL [[[:alpha:]]]+)" + app_pattern;
+            RE2 pattern{pattern_str};
+            ioctl_breakdown_impl(breakdown, data, pattern);
         }
             break;
         case atop::DmesgProbes::INFO: {
             auto pattern_str
-                    = R"(\[[0-9\.\s*]+\] INFO: \(app: ([a-zA-Z_:@\-0-9]+)\) ([a-zA-Z\s_\/\-0-9]+))";
-            ioctl_breakdown_impl(breakdown, data, pattern_str);
+                    = R"(\[[\d\.\s*]+\] INFO: \(app: ([:@\-\w]+)\) ([\s\/\-\w]+))";
+            RE2 pattern{pattern_str};
+            ioctl_breakdown_impl(breakdown, data, pattern);
         }
             break;
         default:
@@ -702,12 +704,13 @@ static atop::logcat_out_t process_and_zip_logcat_log(atop::shell_out_t &&log,
     for (auto it = std::next(std::begin(probes)); it != std::end(probes); ++it)
         probes_regex += "|" + logcat_probe_rgx_tbl[*it];
     std::string regex_str = "(" + probes_regex + ")";
+    RE2 probe_pattern{ regex_str };
 
     auto inserter
-            = [](atop::logcat_out_t &out, std::smatch const &match, std::string const &line) {
+            = [](atop::logcat_out_t &out, std::vector<std::string> const &matches, std::string_view line) {
                 std::string probe;
                 for (const auto&[key, value]: logcat_probe_rgx_tbl)
-                    if (value == match[1].str())
+                    if (value == matches[0])
                         probe = key;
 
                 if (probe.empty())
@@ -739,11 +742,11 @@ atop::LogcatStreamer::LogcatStreamer(std::initializer_list<std::string> probes)
     this->latest_ts_ = "";
 }
 
-static std::string extract_logcat_ts(std::string const &line) {
-    static std::regex reg{R"(^([0-9\-]+ [0-9:\.]+))"};
-    std::smatch match;
-    if (std::regex_search(line, match, reg))
-        return match[1].str();
+static std::string extract_logcat_ts(std::string_view line) {
+    static const RE2 reg{R"(^([\d\-]+ [\d:\.]+))"};
+    std::vector<std::string> matches;
+    if (atop::util::regex_find(reg, line, matches))
+        return matches[0];
     else
         return "";
 }
@@ -818,24 +821,24 @@ void atop::update_tflite_kernel_offload(atop::shell_out_t const &data,
     char *end;
     // Matches, e.g., [123.123] TIME ioctl (s): (app: myapp) (pid: 123) getinfo:
     // 0.009123
-    static std::string tag_pattern = R"([\(\)a-z\s:0-9\-_]*)";
+    static std::string tag_pattern = R"([\(\)a-z\s:\d\-_]*)";
     static std::string app_pattern
             = tag_pattern
-              + R"(\(app: (benchmark_model|neuralnetworks@|HwBinder:[0-9_]+)\))"
+              + R"(\(app: (benchmark_model|neuralnetworks@|HwBinder:[\d_]+)\))"
               + tag_pattern;
-    static auto pattern_str = R"(\[[0-9\.\s*]+\] TIME (ioctl|internal_invoke))"
-                       + app_pattern + R"(: ([0-9\.]+))";
-    static std::regex pattern{pattern_str};
-    static std::smatch match;
+    static auto pattern_str = R"(\[[\d\.\s*]+\] TIME (ioctl|internal_invoke))"
+                       + app_pattern + R"(: ([\d\.]+))";
+    static const RE2 pattern{pattern_str};
+    std::vector<std::string> matches;
 
     double ioctl_time = 0.0;
     double invoke_time = 0.0;
     for (auto &e: data) {
-        if (std::regex_search(e, match, pattern)) {
-            if (match[1] == "ioctl")
-                ioctl_time += strtod(match[3].str().c_str(), &end);
-            else if (match[1] == "internal_invoke")
-                invoke_time += strtod(match[3].str().c_str(), &end);
+        if (atop::util::regex_find(pattern, e, matches)) {
+            if (matches[0] == "ioctl")
+                ioctl_time += strtod(matches[2].c_str(), &end);
+            else if (matches[0] == "internal_invoke")
+                invoke_time += strtod(matches[2].c_str(), &end);
         }
     }
 
@@ -847,14 +850,14 @@ void atop::update_tflite_kernel_gpu_offload(atop::shell_out_t const &data,
     char *end;
     // Matches, e.g., [123.123] TIME ioctl (s): (app: myapp) (pid: 123) getinfo:
     // 0.009123
-    static std::string pattern_str = R"(IOCTL kgsl: \(app: (benchmark_model|neuralnetworks@|HwBinder:[0-9_]+)\) [0-9\[\]\-a-zA-Z_:\(\)\s]* \(time: ([0-9\.]+)\))";
-    static std::regex pattern{pattern_str};
-    static std::smatch match;
+    static std::string pattern_str = R"(IOCTL kgsl: \(app: (benchmark_model|neuralnetworks@|HwBinder:[\d_]+)\) [\[\]\-\w:\(\)\s]* \(time: ([\d\.]+)\))";
+    static const RE2 pattern{pattern_str};
+    std::vector<std::string> matches;
 
     double ioctl_time = 0.0;
     for (auto &e: data) {
-        if (std::regex_search(e, match, pattern)) {
-            ioctl_time += strtod(match[2].str().c_str(), &end);
+        if (atop::util::regex_find(pattern, e, matches)) {
+            ioctl_time += strtod(matches[1].c_str(), &end);
         }
     }
 
@@ -863,24 +866,24 @@ void atop::update_tflite_kernel_gpu_offload(atop::shell_out_t const &data,
 
 void atop::update_tflite_driver_offload(atop::shell_out_t const &data,
                                         atop::BenchmarkStats &stats) {
-    static auto nnapi_driver_pattern{R"((ExecutionBuilder\s*:\s*\(NNAPI ANDROID\) ([0-9\.]+)))"};
+    static auto nnapi_driver_pattern{R"((ExecutionBuilder\s*:\s*\(NNAPI ANDROID\) ([\d\.]+)))"};
     static auto tflite_kernel_pattern{
-            R"((tflite\s*:\s*TIME NNAPI_DELEGATE: \(driver\) ([0-9\.]+) \(delegate\) ([0-9\.]+)))"};
+            R"((tflite\s*:\s*TIME NNAPI_DELEGATE: \(driver\) ([\d\.]+) \(delegate\) ([\d\.]+)))"};
     static auto pattern_str{fmt::format("({0}|{1})", nnapi_driver_pattern, tflite_kernel_pattern)};
-    static std::regex pattern{pattern_str};
-    static std::smatch match;
+    static const RE2 pattern{pattern_str};
+    std::vector<std::string> matches;
     char *end;
 
     double offload = 0.0;
     for (auto &e: data) {
-        if (std::regex_search(e, match, pattern)) {
-            if (match.size() == 4)  // tflite_kernel_pattern
+        if (atop::util::regex_find(pattern, e, matches)) {
+            if (matches.size() == 3)  // tflite_kernel_pattern
             {
-                offload += strtod(match[3].str().c_str(), &end);
+                offload += strtod(matches[2].c_str(), &end);
             } else // nnapi_driver_pattern
             {
-                offload += strtod(match[5].str().c_str(), &end);
-                offload += strtod(match[6].str().c_str(), &end);
+                offload += strtod(matches[4].c_str(), &end);
+                offload += strtod(matches[5].c_str(), &end);
             }
         }
     }
