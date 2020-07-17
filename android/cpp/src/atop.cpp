@@ -21,6 +21,7 @@
 #include <spdlog/spdlog.h>
 // #include <date/tz.h> // FIXME: date/2.4.1 cannot find tz db
 // #include <date/date.h> // FIXME: conan's date/2.4.1 date::parse doesn't work
+#include <re2/re2.h>
 #include "ctpl.h"
 #include "date.h"
 
@@ -185,6 +186,19 @@ static atop::ioctl_dmesg_t process_and_zip_dmesg_log(atop::shell_out_t &&log,
                                                           regex_str, inserter);
 }
 
+static double extract_unformatted_dmesg_ts( std::string const& str )
+{
+    // Match timestamp s.a. "[ 3633.459327] ..."
+    // In dmesg this represents seconds since kernel boot
+    static RE2 pattern{R"(\[([\d\.?]+)\])"};
+    std::vector<std::string> matches;
+
+    if( atop::util::regex_find(pattern, str, matches) )
+        return std::stod(matches[0]);
+    else // hard error since this should happen
+        throw std::runtime_error( "Error during log line parsing: no timestamp found" );
+}
+
 atop::IoctlDmesgStreamer::IoctlDmesgStreamer(std::vector<std::string> const &probes)
         : utilization_probe(atop::DmesgProbes::IOCTL), is_data_fresh(false), latest_ts(0.0),
           latest_data(process_and_zip_dmesg_log(check_dmesg_log(), probes)), latest_interactions({}), probes(probes),
@@ -193,7 +207,7 @@ atop::IoctlDmesgStreamer::IoctlDmesgStreamer(std::vector<std::string> const &pro
     max_tses.reserve(this->latest_data.size());
     for (size_t i = 0; i < this->latest_data.size(); ++i)
         if (this->latest_data[i].size() > 0)
-            max_tses.push_back(atop::util::extract_time(this->latest_data[i].back()));
+            max_tses.push_back(extract_unformatted_dmesg_ts(this->latest_data[i].back()));
 
     if (max_tses.size() > 0)
         this->latest_ts = *std::max_element(max_tses.begin(), max_tses.end());
@@ -204,7 +218,7 @@ atop::ioctl_dmesg_t const &atop::IoctlDmesgStreamer::more() {
     for (size_t i = 0; i < data.size(); ++i) {
         this->latest_data[i].clear();
         for (auto it = data[i].rbegin(); it != data[i].rend(); ++it) {
-            if (atop::util::extract_time(*it) > this->latest_ts)
+            if (extract_unformatted_dmesg_ts(*it) > this->latest_ts)
                 this->latest_data[i].push_back(*it);
             else
                 break;
@@ -215,7 +229,7 @@ atop::ioctl_dmesg_t const &atop::IoctlDmesgStreamer::more() {
     max_tses.reserve(this->latest_data.size());
     for (size_t i = 0; i < this->latest_data.size(); ++i)
         if (this->latest_data[i].size() > 0)
-            max_tses.push_back(atop::util::extract_time(this->latest_data[i][0]));
+            max_tses.push_back(extract_unformatted_dmesg_ts(this->latest_data[i][0]));
 
     if (max_tses.size() > 0) {
         this->latest_ts = *std::max_element(max_tses.begin(), max_tses.end());
@@ -248,12 +262,12 @@ std::map<std::string, int> const &atop::IoctlDmesgStreamer::interactions(bool ch
         std::for_each(this->latest_interactions.begin(), this->latest_interactions.end(),
                       [&](auto &p) { p.second = 0; });
     } else {
-        auto most_recent = atop::util::extract_time(data[0]);
+        auto most_recent = extract_unformatted_dmesg_ts(data[0]);
         if (check_full_log)
             eligible = this->latest_data[PROBE_IDX(this->utilization_probe)];
         else {
             for (auto it = data.rbegin(); it != data.rend(); ++it) {
-                if (atop::util::extract_time(*it) >= (most_recent - threshold))
+                if (extract_unformatted_dmesg_ts(*it) >= (most_recent - threshold))
                     eligible.push_back(*it);
                 else
                     break;
