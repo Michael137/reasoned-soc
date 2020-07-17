@@ -1,10 +1,10 @@
 #include <algorithm>
 #include <cctype>
-#include <locale>
-#include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include <re2/re2.h>
 
 #include "util.h"
 
@@ -42,21 +42,32 @@ std::vector<std::string> atop::util::split( const std::string& s, char delimiter
 	return tokens;
 }
 
-double atop::util::extract_time( std::string const& str )
+bool atop::util::regex_find( RE2 const& pattern, std::string_view str,
+               std::vector<std::string>& results )
 {
-	// Match timestamp s.a. "[ 3633.459327] ..."
-	// In dmesg this represents seconds since kernel boot
-	std::regex pattern{R"(\[(.*?)\])"};
-	std::smatch match;
+    if(!pattern.ok())
+        throw std::runtime_error(std::string(__FUNCTION__) + ": invalid pattern provided");
 
-	if( std::regex_search( str, match, pattern, std::regex_constants::match_continuous ) )
-	{
-		std::string ts_str = match[1].str();
+    std::vector<RE2::Arg> args;
+    std::vector<RE2::Arg*> arg_ptrs;
 
-		return std::stod( ts_str );
-	}
-	else
-		throw std::runtime_error( "Error during log line parsing: no timestamp found" );
+    // Since we checked that pattern is ok the
+    // cast below is safe
+    std::size_t args_count = static_cast<std::size_t>(pattern.NumberOfCapturingGroups());
+
+    args.resize( args_count );
+    arg_ptrs.resize( args_count );
+    results.resize( args_count );
+
+    for( std::size_t i = 0; i < args_count; ++i )
+    {
+        args[i] = &results[i];
+        arg_ptrs[i] = &args[i];
+    }
+
+    re2::StringPiece piece( str );
+    return RE2::FindAndConsumeN( &piece, pattern, arg_ptrs.data(),
+                                 static_cast<int>(args_count) );
 }
 
 std::string atop::util::basepath( std::string const& file_path )

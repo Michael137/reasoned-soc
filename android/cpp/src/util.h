@@ -3,7 +3,8 @@
 
 #include <random>
 #include <string>
-// #include <iterator>
+
+#include <re2/re2.h>
 
 namespace atop
 {
@@ -16,7 +17,8 @@ std::string basepath( std::string const& file_path );
 
 std::vector<std::string> split( const std::string&, char delimiter );
 
-double extract_time( std::string const& );
+bool regex_find( RE2 const& pattern, std::string_view str,
+                           std::vector<std::string>& results );
 
 class NotImplementedException : public std::logic_error
 {
