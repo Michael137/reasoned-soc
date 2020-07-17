@@ -6,8 +6,6 @@
 
 #include <re2/re2.h>
 
-#include <iostream>
-
 #include "util.h"
 
 // trim from start (in place)
