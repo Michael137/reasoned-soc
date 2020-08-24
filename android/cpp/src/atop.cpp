@@ -189,7 +189,7 @@ static double extract_unformatted_dmesg_ts( std::string const& str )
 {
     // Match timestamp s.a. "[ 3633.459327] ..."
     // In dmesg this represents seconds since kernel boot
-    static RE2 pattern{R"(\[([\d\.?]+)\])"};
+    static RE2 pattern{R"(\[([\s\d\.?]+)\])"};
     std::vector<std::string> matches;
 
     if( atop::util::regex_find(pattern, str, matches) )

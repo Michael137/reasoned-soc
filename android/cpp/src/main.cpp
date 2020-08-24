@@ -673,9 +673,9 @@ int main(int argc, const char **argv) {
                               ? "qti-dsp"
                               : ((delegate_rb == 5)
                                  ? "qti-gpu"
-                                 : ((delegate_rb == 6) ? "paintbox" : ""));
+                                 : ((delegate_rb == 6) ? "paintbox" : ((delegate_rb == 7) ? "qti-hta" : "")));
                     bool use_nnapi = (delegate_rb == 2 || delegate_rb == 4 || delegate_rb == 5
-                                      || delegate_rb == 6);
+                                      || delegate_rb == 6 || delegate_rb == 7);
 
                     // TODO: tflite benchmark tool has undocumented CSV
                     // export flag "profiling_output_csv_file". Requires
@@ -748,6 +748,7 @@ int main(int argc, const char **argv) {
                 ImGui::RadioButton("nnapi-gpu", &delegate_rb, 5);
                 ImGui::SameLine();
                 ImGui::RadioButton("nnapi-paintbox", &delegate_rb, 6);
+                ImGui::RadioButton("nnapi-hta", &delegate_rb, 7);
 
                 ImGui::Checkbox("w/ CPU Fallback", &cpu_fallback);
                 ImGui::SameLine();
