@@ -722,7 +722,6 @@ static void ioctl_breakdown_impl( std::map<std::string, std::map<std::string, in
 	{
 		if( atop::util::regex_find( pattern, line, matches ) )
 		{
-			LOG( line );
 			std::string app = matches[0];
 			std::string cmd = matches[1];
 			// Application in map?
