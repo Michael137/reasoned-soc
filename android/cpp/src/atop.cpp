@@ -651,6 +651,7 @@ static void ioctl_breakdown_impl(std::map<std::string, std::map<std::string, int
 
     for (auto &&line: data) {
         if (atop::util::regex_find(pattern, line, matches)) {
+			LOG(line);
             std::string app = matches[0];
             std::string cmd = matches[1];
             // Application in map?
@@ -672,8 +673,8 @@ void atop::ioctl_breakdown(std::map<std::string, std::map<std::string, int>> &br
             std::string tag_pattern = R"([\(\)\w\s:\-]*)";
             std::string cmd_pattern = R"(\(cmd: ([\w\s]+) \[[\d]+\]\))";
             std::string app_pattern
-                    = tag_pattern + R"(\(app: ([\w:@\-]+)\))" + " " + cmd_pattern + tag_pattern;
-            auto pattern_str = R"(\[[\d\.\s*]+\] IOCTL [[[:alpha:]]]+)" + app_pattern;
+                    = tag_pattern + R"(\(app: ([\w_:@\-]+)\))" + " " + cmd_pattern + tag_pattern;
+            auto pattern_str = R"(\[[\d\.\s*]+\] IOCTL [a-zA-Z]+)" + app_pattern;
             RE2 pattern{pattern_str};
             ioctl_breakdown_impl(breakdown, data, pattern);
         }
