@@ -32,6 +32,7 @@ using namespace std::chrono_literals;
 
 // Constants
 static const std::string TFLITE_BENCHMARK_BIN = "/data/local/tmp/benchmark_model";
+static const std::string TFLITE_BENCHMARK_APK = "org.tensorflow.lite.benchmark";
 static const std::string SNPE_BENCHMARK_BIN
     = "/data/local/tmp/snpebm/artifacts/arm-android-clang6.0/bin/snpe-net-run";
 static const std::string logcat_time_fmt = "%m-%d %T";
@@ -80,7 +81,7 @@ static bool in_adb_root() { return atop::check_console_output( "adb shell whoami
 
 void atop::check_reqs()
 {
-	std::array required_bins{"adb"};
+	std::array required_bins{ "adb" };
 	std::vector<std::string> not_found_bins{};
 
 	for( auto& bin: required_bins )
@@ -186,7 +187,7 @@ static atop::ioctl_dmesg_t process_and_zip_dmesg_log( atop::shell_out_t&& log,
 	    std::next( probes.begin() ), probes.end(), probes[0],
 	    []( std::string const& a, std::string const& b ) { return a + "|" + b; } );
 	std::string regex_str = std::string( R"(\[[\d\.\s]+\]\s+)" ) + "(" + probes_regex.c_str() + ")";
-	RE2 pattern{regex_str};
+	RE2 pattern{ regex_str };
 
 	auto inserter = []( atop::ioctl_dmesg_t& out, std::vector<std::string> const& matches,
 	                    std::string_view line ) {
@@ -202,7 +203,7 @@ static double extract_unformatted_dmesg_ts( std::string const& str )
 {
 	// Match timestamp s.a. "[ 3633.459327] ..."
 	// In dmesg this represents seconds since kernel boot
-	static RE2 pattern{R"(\[([\s\d\.?]+)\])"};
+	static RE2 pattern{ R"(\[([\s\d\.?]+)\])" };
 	std::vector<std::string> matches;
 
 	if( atop::util::regex_find( pattern, str, matches ) )
@@ -264,7 +265,7 @@ atop::ioctl_dmesg_t const& atop::IoctlDmesgStreamer::more()
 
 static std::string extract_dmesg_accl_tag( std::string_view str )
 {
-	RE2 pattern{R"(IOCTL ([\w]+):)"};
+	RE2 pattern{ R"(IOCTL ([\w]+):)" };
 	std::vector<std::string> matches;
 
 	if( atop::util::regex_find( pattern, str, matches ) )
@@ -317,7 +318,7 @@ std::map<std::string, int> const& atop::IoctlDmesgStreamer::interactions( bool c
 			if( !tag.empty() )
 			{
 				if( this->latest_interactions.find( tag ) == this->latest_interactions.end() )
-					this->latest_interactions.insert( {tag, 0} );
+					this->latest_interactions.insert( { tag, 0 } );
 				this->latest_interactions[tag] += 1;
 			}
 		}
@@ -335,15 +336,28 @@ static bool file_exists_on_device( std::string const& pth )
 	return atop::check_console_output( "adb shell ls " + pth )[0] == pth;
 }
 
+static bool apk_installed_on_device( std::string const& pth )
+{
+	return atop::check_console_output( "adb shell pm list packages " + pth )[0] == "package:" + pth;
+}
+
 static void check_file_exists_on_device( std::string const& pth )
 {
 	if( !file_exists_on_device( pth ) )
 		atop::logger::log_and_exit( fmt::format( "Path '{0}' doesn't exist on device", pth ) );
 }
 
+static void check_apk_installed_on_device( std::string const& pth )
+{
+	if( !apk_installed_on_device( pth ) )
+		atop::logger::log_and_exit( fmt::format( "APK '{0}' is not installed on device", pth ) );
+}
+
 static void check_tflite_reqs() { check_file_exists_on_device( TFLITE_BENCHMARK_BIN ); }
 
 static void check_snpe_reqs() { check_file_exists_on_device( SNPE_BENCHMARK_BIN ); }
+
+static void check_tflite_app_reqs() { check_apk_installed_on_device( TFLITE_BENCHMARK_APK ); }
 
 static std::vector<std::string> get_tflite_models()
 {
@@ -369,6 +383,7 @@ std::vector<std::string> atop::get_models_on_device( atop::Frameworks fr )
 			    fmt::format( "Framework {0} not yet implemented", atop::framework2string( fr ) ) );
 		case atop::Frameworks::SNPE: check_snpe_reqs(); return get_snpe_models();
 		case atop::Frameworks::tflite: check_tflite_reqs(); return get_tflite_models();
+		case atop::Frameworks::tflite_app: check_tflite_app_reqs(); return get_tflite_models();
 	}
 
 	throw std::logic_error(
@@ -379,10 +394,11 @@ static std::future<atop::shell_out_t>
 run_benchmark( std::string const& benchmark_bin, fmt::string_view options_fmt,
                fmt::string_view model_fmt, std::vector<std::string> const& model_paths,
                std::map<std::string, std::string> const& options, int processes,
-               std::string const& prefix                                                  = "",
-               std::function<std::string( std::string const& )> const& suffix_gen         = nullptr,
+               std::string const& prefix = "",
+               std::function<std::string( std::string const& )> const& suffix_gen
+               = nullptr, /* base command suffix */
                std::function<atop::shell_out_t( std::string const& )> const& after_runner = nullptr,
-               int repeat                                                                 = 0 )
+               int repeat = 0, bool use_taskset = true, std::string const& cmd_suffix = "" )
 {
 	// The user is unlikely to spawn more than
 	// 8 threads simultaneously (unless this function
@@ -393,14 +409,15 @@ run_benchmark( std::string const& benchmark_bin, fmt::string_view options_fmt,
 	std::stringstream base_cmd;
 	// taskset f0: run benchmark on the big cores of big.LITLE ARM CPUs.
 	// This reduces variance between benchmark runs
-	base_cmd << prefix << ( ( prefix.empty() ) ? "" : ";" ) << " taskset f0 " << benchmark_bin;
+	base_cmd << prefix << ( ( prefix.empty() ) ? "" : ";" )
+	         << ( use_taskset ? " taskset f0 " : " " ) << benchmark_bin;
 	for( auto&& p: options )
 	{
 		base_cmd << " ";
 		base_cmd << fmt::format( options_fmt, p.first, p.second );
 	}
 
-	std::string base_cmd_str{base_cmd.str()};
+	std::string base_cmd_str{ base_cmd.str() };
 	std::stringstream cmd;
 	std::string model_fmt_str = fmt::format( " {0} & ", model_fmt );
 	std::string selected_model;
@@ -411,7 +428,7 @@ run_benchmark( std::string const& benchmark_bin, fmt::string_view options_fmt,
 		if( suffix_gen != nullptr )
 			cmd << " " << suffix_gen( selected_model ) << " ";
 
-		cmd << fmt::format( model_fmt_str, selected_model );
+		cmd << fmt::format( model_fmt_str, selected_model ) << cmd_suffix;
 
 		if( i < processes - 1 )
 			cmd << base_cmd_str;
@@ -469,6 +486,18 @@ atop::run_tflite_benchmark( std::vector<std::string> const& model_paths,
 {
 	return run_benchmark( TFLITE_BENCHMARK_BIN, "--{0}={1}", "--graph={0}", model_paths, options,
 	                      processes );
+}
+
+std::future<atop::shell_out_t>
+atop::run_tflite_app_benchmark( std::vector<std::string> const& model_paths,
+                                std::map<std::string, std::string> const& options, int processes )
+{
+	std::string bench_cmd
+	    = "am start -S -n org.tensorflow.lite.benchmark/.BenchmarkModelActivity --es args '";
+
+	return run_benchmark( bench_cmd, "--{0}={1}", "--graph={0}", model_paths, options, processes,
+	                      "" /* no prefix */, nullptr, nullptr, 0 /* = repeat */,
+	                      false /* use_taskset */, "'" /* enclose command in single quotes */ );
 }
 
 static atop::shell_out_t get_snpe_diagview_output( std::string const& model_path )
@@ -614,7 +643,7 @@ static void summarize_tflite_benchmark_output( atop::shell_out_t const& out,
 {
 	char* end;
 	// Pattern extracts "Init" and "Inference (avg)" results
-	static const RE2 pattern{R"(Init: ([\d]+)([\w:\s,\(\)].*)Inference \(avg\): ([\d]+))"};
+	static const RE2 pattern{ R"(Init: ([\d]+)([\w:\s,\(\)].*)Inference \(avg\): ([\d]+))" };
 
 	for( auto& line: out )
 	{
@@ -646,7 +675,7 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 	char* end;
 
 	// Match e.g. Create Networks(s): 12345 us
-	static const RE2 pattern{R"(([\w\s\(\)-]+):\s([\d]+) us)"};
+	static const RE2 pattern{ R"(([\w\s\(\)-]+):\s([\d]+) us)" };
 
 	// SNPE Stats
 	std::map<std::string, uint64_t> snpe_stats;
@@ -679,7 +708,7 @@ static void summarize_snpe_benchmark_output( atop::shell_out_t const& out,
 			if( atop::util::regex_find( pattern, line, matches ) )
 			{
 				uint64_t val = strtoull( matches[1].c_str(), &end, 10 );
-				if( auto it{snpe_stats.find( matches[0] )}; it != std::end( snpe_stats ) )
+				if( auto it{ snpe_stats.find( matches[0] ) }; it != std::end( snpe_stats ) )
 					( *it ).second += val;
 				else
 					snpe_stats.insert( std::pair<std::string, uint64_t>( matches[0], val ) );
@@ -707,6 +736,7 @@ void atop::summarize_benchmark_output( shell_out_t const& out, atop::Frameworks 
 	switch( fr )
 	{
 		case atop::Frameworks::tflite: summarize_tflite_benchmark_output( out, stats ); break;
+		case atop::Frameworks::tflite_app: summarize_tflite_benchmark_output( out, stats ); break;
 		case atop::Frameworks::SNPE: summarize_snpe_benchmark_output( out, stats ); break;
 		case atop::Frameworks::mlperf:
 			throw atop::util::NotImplementedException( "Framework mlperf not yet implemented" );
@@ -725,10 +755,11 @@ static void ioctl_breakdown_impl( std::map<std::string, std::map<std::string, in
 			std::string app = matches[0];
 			std::string cmd = matches[1];
 			// Application in map?
-			if( auto it{breakdown.find( app )}; it == std::end( breakdown ) )
+			if( auto it{ breakdown.find( app ) }; it == std::end( breakdown ) )
 				breakdown.insert( std::pair<std::string, std::map<std::string, int>>( app, {} ) );
 
-			if( auto ioctl_it{breakdown[app].find( cmd )}; ioctl_it == std::end( breakdown[app] ) )
+			if( auto ioctl_it{ breakdown[app].find( cmd ) };
+			    ioctl_it == std::end( breakdown[app] ) )
 				breakdown[app].insert( std::pair<std::string, int>( cmd, 0 ) );
 
 			breakdown[app][cmd]++;
@@ -748,14 +779,14 @@ void atop::ioctl_breakdown( std::map<std::string, std::map<std::string, int>>& b
 			std::string app_pattern
 			    = tag_pattern + R"(\(app: ([\w_:@\-]+)\))" + " " + cmd_pattern + tag_pattern;
 			auto pattern_str = R"(\[[\d\.\s*]+\] IOCTL [a-zA-Z]+)" + app_pattern;
-			RE2 pattern{pattern_str};
+			RE2 pattern{ pattern_str };
 			ioctl_breakdown_impl( breakdown, data, pattern );
 		}
 		break;
 		case atop::DmesgProbes::INFO:
 		{
 			auto pattern_str = R"(\[[\d\.\s*]+\] INFO: \(app: ([:@\-\w]+)\) ([\s\/\-\w]+))";
-			RE2 pattern{pattern_str};
+			RE2 pattern{ pattern_str };
 			ioctl_breakdown_impl( breakdown, data, pattern );
 		}
 		break;
@@ -767,18 +798,18 @@ void atop::ioctl_breakdown( std::map<std::string, std::map<std::string, int>>& b
 
 // TODO: could be std::map<LogcatProbes, std::string>
 static std::map<std::string, std::string> logcat_probe_rgx_tbl
-    = {{"ExecutionBuilder", "NNAPI ANDROID"}, {"tflite", "TIME NNAPI_DELEGATE:"}};
+    = { { "ExecutionBuilder", "NNAPI ANDROID" }, { "tflite", "TIME NNAPI_DELEGATE:" } };
 
 // TODO: compute regex once
 static atop::logcat_out_t process_and_zip_logcat_log( atop::shell_out_t&& log,
                                                       std::vector<std::string> const& probes )
 {
 	// Match dmesg timestamp followed by probe
-	std::string probes_regex{logcat_probe_rgx_tbl[probes[0]]};
+	std::string probes_regex{ logcat_probe_rgx_tbl[probes[0]] };
 	for( auto it = std::next( std::begin( probes ) ); it != std::end( probes ); ++it )
 		probes_regex += "|" + logcat_probe_rgx_tbl[*it];
 	std::string regex_str = "(" + probes_regex + ")";
-	RE2 probe_pattern{regex_str};
+	RE2 probe_pattern{ regex_str };
 
 	auto inserter = []( atop::logcat_out_t& out, std::vector<std::string> const& matches,
 	                    std::string_view line ) {
@@ -824,7 +855,7 @@ atop::LogcatStreamer::LogcatStreamer( std::initializer_list<std::string> probes 
 
 static std::string extract_logcat_ts( std::string_view line )
 {
-	static const RE2 reg{R"(^([\d\-]+ [\d:\.]+))"};
+	static const RE2 reg{ R"(^([\d\-]+ [\d:\.]+))" };
 	std::vector<std::string> matches;
 	if( atop::util::regex_find( reg, line, matches ) )
 		return matches[0];
@@ -855,7 +886,7 @@ atop::logcat_out_t atop::LogcatStreamer::more()
 			using namespace date;
 			std::chrono::system_clock::time_point tp;
 			std::string ts = extract_logcat_ts( kv.second.back() );
-			std::istringstream ss{ts};
+			std::istringstream ss{ ts };
 			ss >> date::parse( logcat_time_fmt, tp );
 			max_tses.push_back( tp );
 		}
@@ -890,7 +921,7 @@ static void update_tflite_offload( atop::BenchmarkStats& stats, double offload_t
 {
 	if( offload_t >= 0 )
 	{
-		if( auto it{stats.stats.find( "offload" )}; it != std::end( stats.stats ) )
+		if( auto it{ stats.stats.find( "offload" ) }; it != std::end( stats.stats ) )
 			( *it ).second += static_cast<uint64_t>( offload_t * 1.0e6 );
 		else
 			stats.stats.insert( std::pair<std::string, double>(
@@ -917,7 +948,7 @@ void atop::update_tflite_kernel_offload( atop::shell_out_t const& data,
 	      + tag_pattern;
 	static auto pattern_str
 	    = R"(\[[\d\.\s*]+\] TIME (ioctl|internal_invoke))" + app_pattern + R"(: ([\d\.]+))";
-	static const RE2 pattern{pattern_str};
+	static const RE2 pattern{ pattern_str };
 	std::vector<std::string> matches;
 
 	double ioctl_time  = 0.0;
@@ -944,7 +975,7 @@ void atop::update_tflite_kernel_gpu_offload( atop::shell_out_t const& data,
 	// 0.009123
 	static std::string pattern_str
 	    = R"(IOCTL kgsl: \(app: (benchmark_model|neuralnetworks@|HwBinder:[\d_]+)\) [\[\]\-\w:\(\)\s]* \(time: ([\d\.]+)\))";
-	static const RE2 pattern{pattern_str};
+	static const RE2 pattern{ pattern_str };
 	std::vector<std::string> matches;
 
 	double ioctl_time = 0.0;
@@ -962,12 +993,12 @@ void atop::update_tflite_kernel_gpu_offload( atop::shell_out_t const& data,
 void atop::update_tflite_driver_offload( atop::shell_out_t const& data,
                                          atop::BenchmarkStats& stats )
 {
-	static auto nnapi_driver_pattern{R"((ExecutionBuilder\s*:\s*\(NNAPI ANDROID\) ([\d\.]+)))"};
+	static auto nnapi_driver_pattern{ R"((ExecutionBuilder\s*:\s*\(NNAPI ANDROID\) ([\d\.]+)))" };
 	static auto tflite_kernel_pattern{
-	    R"((tflite\s*:\s*TIME NNAPI_DELEGATE: \(driver\) ([\d\.]+) \(delegate\) ([\d\.]+)))"};
+	    R"((tflite\s*:\s*TIME NNAPI_DELEGATE: \(driver\) ([\d\.]+) \(delegate\) ([\d\.]+)))" };
 	static auto pattern_str{
-	    fmt::format( "({0}|{1})", nnapi_driver_pattern, tflite_kernel_pattern )};
-	static const RE2 pattern{pattern_str};
+	    fmt::format( "({0}|{1})", nnapi_driver_pattern, tflite_kernel_pattern ) };
+	static const RE2 pattern{ pattern_str };
 	std::vector<std::string> matches;
 	char* end;
 

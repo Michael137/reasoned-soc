@@ -23,13 +23,17 @@ using shell_out_t = std::vector<std::string>;
 
 enum class Frameworks : int
 {
-	tflite = 0,
+	tflite,
 	mlperf,
-	SNPE
+	SNPE,
+	tflite_app
 };
 
 std::map<std::string, Frameworks> const frameworks_table
-    = {{"tflite", Frameworks::tflite}, {"mlperf", Frameworks::mlperf}, {"SNPE", Frameworks::SNPE}};
+    = { { "tflite", Frameworks::tflite },
+        { "mlperf", Frameworks::mlperf },
+        { "SNPE", Frameworks::SNPE },
+        { "tflite_app", Frameworks::tflite_app } };
 
 inline Frameworks string2framework( std::string fr )
 {
@@ -63,6 +67,9 @@ shell_out_t get_models_on_device( Frameworks );
 std::future<shell_out_t> run_tflite_benchmark( std::vector<std::string> const& model_paths,
                                                std::map<std::string, std::string> const& options,
                                                int processes = 1 );
+std::future<shell_out_t> run_tflite_app_benchmark( std::vector<std::string> const& model_paths,
+                                               std::map<std::string, std::string> const& options,
+                                               int processes = 1 );
 std::future<shell_out_t> run_snpe_benchmark( std::vector<std::string> const& model_paths,
                                              std::map<std::string, std::string> const& options,
                                              int processes = 1, int num_runs = 1 );
@@ -78,8 +85,9 @@ enum class DmesgProbes : int
 	LAST = 3
 };
 
-std::map<std::string, DmesgProbes> const dmesg_probes_table
-    = {{"IOCTL", DmesgProbes::IOCTL}, {"TIME", DmesgProbes::TIME}, {"INFO", DmesgProbes::INFO}};
+std::map<std::string, DmesgProbes> const dmesg_probes_table = { { "IOCTL", DmesgProbes::IOCTL },
+                                                                { "TIME", DmesgProbes::TIME },
+                                                                { "INFO", DmesgProbes::INFO } };
 
 #define PROBE_IDX( probe_ ) static_cast<size_t>( ( probe_ ) )
 
@@ -113,9 +121,9 @@ class IoctlDmesgStreamer
 {
   public:
 	explicit IoctlDmesgStreamer( std::vector<std::string> const& probes
-	                             = {dmesgProbes2string( DmesgProbes::IOCTL ),
-	                                dmesgProbes2string( DmesgProbes::TIME ),
-	                                dmesgProbes2string( DmesgProbes::INFO )} );
+	                             = { dmesgProbes2string( DmesgProbes::IOCTL ),
+	                                 dmesgProbes2string( DmesgProbes::TIME ),
+	                                 dmesgProbes2string( DmesgProbes::INFO ) } );
 	~IoctlDmesgStreamer()                           = default;
 	IoctlDmesgStreamer( IoctlDmesgStreamer const& ) = delete;
 	IoctlDmesgStreamer( IoctlDmesgStreamer&& )      = delete;
@@ -168,13 +176,13 @@ class CpuUtilizationStreamer
 struct BenchmarkStats
 {
 	// Latencies in microseconds
-	std::unordered_map<std::string, uint64_t> stats = {{"preproc", 0},
-	                                                   {"postproc", 0},
-	                                                   {"inference", 0},
-	                                                   {"offload", 0},
-	                                                   // Framework overhead for delegation
-	                                                   {"delegation", 0},
-	                                                   {"init", 0}};
+	std::unordered_map<std::string, uint64_t> stats = { { "preproc", 0 },
+	                                                    { "postproc", 0 },
+	                                                    { "inference", 0 },
+	                                                    { "offload", 0 },
+	                                                    // Framework overhead for delegation
+	                                                    { "delegation", 0 },
+	                                                    { "init", 0 } };
 };
 
 enum class LogcatProbes : int
@@ -188,7 +196,8 @@ enum class LogcatProbes : int
 };
 
 std::map<std::string, LogcatProbes> const logcat_probes_table
-    = {{"ExecutionBuilder", LogcatProbes::ExecutionBuilder}, {"tflite", LogcatProbes::TfLite}};
+    = { { "ExecutionBuilder", LogcatProbes::ExecutionBuilder },
+        { "tflite", LogcatProbes::TfLite } };
 
 using logcat_out_t = std::map<std::string, shell_out_t>;
 class LogcatStreamer

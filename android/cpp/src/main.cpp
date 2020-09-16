@@ -297,7 +297,7 @@ static void ShowBenchmarkSummary( bool* popen, atop::BenchmarkStats& stats, int 
 	ImGui::Begin( "Benchmark Summary", popen );
 	for( auto&& p: stats.stats )
 	{
-		if( fr == "tflite" && p.first == "offload" )
+		if( (fr == "tflite" || fr == "tflite_app") && p.first == "offload" )
 		{
 			ImGui::TextUnformatted(
 			    fmt::format( "{0}: {1} ms", p.first,
@@ -367,7 +367,7 @@ int main( int argc, const char** argv )
 
 	static int delegate_rb                     = 0;
 	static int sel_framework                   = 0;
-	static std::vector<std::string> frameworks = {"tflite", "mlperf", "SNPE"};
+	static std::vector<std::string> frameworks = {"tflite", "tflite_app", "mlperf", "SNPE"};
 
 	// TODO: is models + selected_models a better structure than the
 	// embedded boolean?
@@ -689,8 +689,11 @@ int main( int argc, const char** argv )
 		// tflite benchmark framework only delegates quantized models to
 		// Hexagon DSPs
 		bool tflite_hexagon_selected
-		    = ( frameworks[static_cast<size_t>( sel_framework )]
+		    = (( frameworks[static_cast<size_t>( sel_framework )]
 		        == atop::framework2string( atop::Frameworks::tflite ) )
+                ||
+                ( frameworks[static_cast<size_t>( sel_framework )]
+                  == atop::framework2string( atop::Frameworks::tflite_app ) ))
 		      && ( delegate_rb == 0 /* hexagon dsp delegate */ || delegate_rb == 4 /* qti-dsp */ );
 
 		if( ImGui::ListBoxHeader( "Models" ) )
@@ -736,8 +739,10 @@ int main( int argc, const char** argv )
 		{
 			bench_summary.stats.clear();
 			ioctl_breakdown.clear();
-			switch( atop::string2framework( frameworks[static_cast<size_t>( sel_framework )] ) )
+			auto fr = atop::string2framework( frameworks[static_cast<size_t>( sel_framework )] );
+			switch( fr )
 			{
+                case atop::Frameworks::tflite_app:
 				case atop::Frameworks::tflite:
 				{
 					std::string nnapi_accelerator_name
@@ -754,25 +759,33 @@ int main( int argc, const char** argv )
 					// TODO: tflite benchmark tool has undocumented CSV
 					// export flag "profiling_output_csv_file". Requires
 					// enable_op_profiling
-					benchmark_futures_q.emplace( atop::run_tflite_benchmark(
-					    unzip_imgui_models( models ),
-					    {
-					        {"num_threads", std::to_string( num_cpu_threads )},
-					        {"warmup_runs", std::to_string( num_warmup_runs )},
-					        {"num_runs", std::to_string( num_runs )},
-					        {"hexagon_profiling", "false"},
-					        {"enable_op_profiling", "false"},
-					        // cpu fallback false => disable nnapi cpu true
-					        {"disable_nnapi_cpu",
-					         atop::util::bool2string( !cpu_fallback && use_nnapi )},
-					        {"require_full_delegation", atop::util::bool2string( !cpu_fallback )},
-					        {"use_hexagon", atop::util::bool2string( delegate_rb == 0 )},
-					        {"use_gpu", atop::util::bool2string( delegate_rb == 1 )},
-					        {"use_nnapi", atop::util::bool2string( use_nnapi )},
-					        {"nnapi_accelerator_name", nnapi_accelerator_name},
-					        {"time_driver", atop::util::bool2string( driver_logging )},
-					    },
-					    num_procs ) );
+                    std::map<std::string, std::string> options = {
+                        {"num_threads", std::to_string( num_cpu_threads )},
+                        {"warmup_runs", std::to_string( num_warmup_runs )},
+                        {"num_runs", std::to_string( num_runs )},
+                        {"hexagon_profiling", "false"},
+                        {"enable_op_profiling", "false"},
+                        // cpu fallback false => disable nnapi cpu true
+                        {"disable_nnapi_cpu",
+                            atop::util::bool2string( !cpu_fallback && use_nnapi )},
+                        {"require_full_delegation", atop::util::bool2string( !cpu_fallback )},
+                        {"use_hexagon", atop::util::bool2string( delegate_rb == 0 )},
+                        {"use_gpu", atop::util::bool2string( delegate_rb == 1 )},
+                        {"use_nnapi", atop::util::bool2string( use_nnapi )},
+                        {"nnapi_accelerator_name", nnapi_accelerator_name},
+                        {"time_driver", atop::util::bool2string( driver_logging )},
+                    };
+
+					if(fr == atop::Frameworks::tflite_app)
+                        benchmark_futures_q.emplace( atop::run_tflite_app_benchmark(
+                            unzip_imgui_models( models ),
+                            options,
+                            num_procs ) );
+					else
+                        benchmark_futures_q.emplace( atop::run_tflite_benchmark(
+                            unzip_imgui_models( models ),
+                            options,
+                            num_procs ) );
 				}
 				break;
 				case atop::Frameworks::SNPE:
@@ -809,6 +822,7 @@ int main( int argc, const char** argv )
 		ImGui::Begin( "Benchmark Options" );
 		switch( atop::string2framework( frameworks[static_cast<size_t>( sel_framework )] ) )
 		{
+            case atop::Frameworks::tflite_app:
 			case atop::Frameworks::tflite:
 				ImGui::RadioButton( "Hexagon DSP", &delegate_rb, 0 );
 				ImGui::SameLine();
