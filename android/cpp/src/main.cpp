@@ -755,9 +755,9 @@ int main( int argc, const char** argv )
 					                  ? "qti-gpu"
 					                  : ( ( delegate_rb == 6 )
 					                          ? "paintbox"
-					                          : ( ( delegate_rb == 7 ) ? "qti-hta" : "" ) ) );
+					                          : ( ( delegate_rb == 7 ) ? "qti-hta" : (delegate_rb == 8 ? "nnapi-reference" : "") ) ) );
 					bool use_nnapi = ( delegate_rb == 2 || delegate_rb == 4 || delegate_rb == 5
-					                   || delegate_rb == 6 || delegate_rb == 7 );
+					                   || delegate_rb == 6 || delegate_rb == 7 || delegate_rb == 8 );
 
 					// TODO: tflite benchmark tool has undocumented CSV
 					// export flag "profiling_output_csv_file". Requires
@@ -778,7 +778,7 @@ int main( int argc, const char** argv )
 					    { "nnapi_accelerator_name", nnapi_accelerator_name },
 					    { "time_driver", atop::util::bool2string( driver_logging ) },
 					    { "nnapi_execution_preference",
-					      exec_prefs[static_cast<size_t>( sel_exec_pref )] },
+                            (use_nnapi) ? exec_prefs[static_cast<size_t>( sel_exec_pref )] : "" },
 					};
 
 					if( fr == atop::Frameworks::tflite_app )
@@ -839,6 +839,8 @@ int main( int argc, const char** argv )
 				ImGui::SameLine();
 				ImGui::RadioButton( "nnapi-paintbox", &delegate_rb, 6 );
 				ImGui::RadioButton( "nnapi-hta", &delegate_rb, 7 );
+                ImGui::SameLine();
+                ImGui::RadioButton( "nnapi-cpu", &delegate_rb, 8 );
 
 				ImGui::Checkbox( "w/ CPU Fallback", &cpu_fallback );
 				ImGui::SameLine();

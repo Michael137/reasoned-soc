@@ -638,12 +638,22 @@ std::map<std::string, double> const& atop::CpuUtilizationStreamer::utilizations(
 	return this->latest_utils;
 }
 
+static auto expand_scientific_notation(std::string const& str)
+{
+	char* end;
+	auto exp_pos = str.find('e');
+	auto exp = std::strtoull(str.substr(exp_pos + 2).c_str(), &end, 10);
+	auto mantissa = std::strtod(str.substr(0, exp_pos).c_str(), &end);
+	return mantissa * std::pow(10, exp);
+}
+
 static void summarize_tflite_benchmark_output( atop::shell_out_t const& out,
                                                atop::BenchmarkStats& stats )
 {
 	char* end;
 	// Pattern extracts "Init" and "Inference (avg)" results
-	static const RE2 pattern{ R"(Init: ([\d]+)([\w:\s,\(\)].*)Inference \(avg\): ([\d]+))" };
+    // NB: Avg could be in scientific notation
+	static const RE2 pattern{ R"(Init: ([\d]+)([\w:\s,\(\)].*)Inference \(avg\): ([\d\.\+e]+))" };
 
 	for( auto& line: out )
 	{
@@ -657,12 +667,16 @@ static void summarize_tflite_benchmark_output( atop::shell_out_t const& out,
 			std::vector<std::string> matches;
 
 			if( atop::util::regex_find( pattern, line, matches ) )
-			{
+            {
 				stats.stats["init"] = strtoull( matches[0].c_str(), &end, 10 );
 				// Inference time in tflite benchmark doesn't include
 				// pre-/post-processing
 				// TODO: account for offload?
-				stats.stats["inference"] = strtoull( matches[2].c_str(), &end, 10 );
+				auto inf_str = matches[2];
+				if(inf_str.find('e') != std::string::npos)
+					stats.stats["inference"] = static_cast<uint64_t>(expand_scientific_notation(inf_str));
+				else
+                    stats.stats["inference"] = strtoull( inf_str.c_str(), &end, 10 );
 			}
 		}
 	}
